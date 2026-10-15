@@ -232,6 +232,7 @@
 
   <script type="text/babel">
     const { useState, useEffect, useMemo, useRef } = React;
+    try { if ("scrollRestoration" in history) history.scrollRestoration = "manual"; } catch (e) {}
 
     // ============================================================
     // 🏫 大学設定（ここ1か所を変えると、全画面の大学名・学部名・サンプルデータが切り替わります）
@@ -680,10 +681,78 @@
     //   ・お店のQRは週ごとに変わる（今週・先週分のみ有効）。印刷用ページ：store_qr.html
     //   ※ 本番ではQRの中身にサーバー署名を付け、照合と記録はサーバーで行う想定
     // ============================================================
-    const STORES = {
-      hokubu: `${U.dining}`,
-      cafe: "学内カフェ"
-    };
+    // 🏬 ポイントを使える協力店（札幌駅周辺）
+    //   ※ 店名・特典はサンプル（営業前の仮データ）。協力が決まったお店に差し替えてください
+    //   ・hours：[開店, 閉店]（分）を複数書ける（昼休みあり等）。closed：定休日の曜日（0=日〜6=土）
+    //   ・photo が読み込めないときは、ジャンルのアイコンを表示します
+    const PARTNER_STORES = [
+      {
+        id: "hoshino", name: "喫茶 ほしのみち", genre: "カフェ", icon: "local_cafe",
+        photo: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&auto=format&fit=crop&q=60",
+        access: "北口 徒歩3分", address: "札幌市北区北7条西4丁目", hoursText: "8:00–20:00", closedText: "水曜",
+        hours: [[480, 1200]], closed: [3], note: "電源席あり・1人でも入りやすい",
+        ticket: { title: "ドリンク1杯 無料", detail: "ブレンド・カフェラテ・季節のドリンクから1杯", cost: 100 }
+      },
+      {
+        id: "kogane", name: "スープカレー こがね", genre: "スープカレー", icon: "ramen_dining",
+        photo: "https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?w=600&auto=format&fit=crop&q=60",
+        access: "南口 徒歩4分", address: "札幌市中央区北4条西3丁目", hoursText: "11:00–21:30", closedText: "なし",
+        hours: [[660, 1290]], closed: [], note: "辛さ0〜10番から選べる",
+        ticket: { title: "トッピング1品 無料", detail: "300円までのトッピングから1品", cost: 80 }
+      },
+      {
+        id: "shirokuma", name: "麺屋 しろくま", genre: "ラーメン", icon: "ramen_dining",
+        photo: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=600&auto=format&fit=crop&q=60",
+        access: "北口 徒歩5分", address: "札幌市北区北8条西3丁目", hoursText: "11:00–15:00 / 17:30–22:00", closedText: "月曜",
+        hours: [[660, 900], [1050, 1320]], closed: [1], note: "味噌ラーメンが看板",
+        ticket: { title: "大盛り 無料", detail: "全ラーメン対象", cost: 60 }
+      },
+      {
+        id: "komugi", name: "ベーカリー こむぎ堂", genre: "パン", icon: "bakery_dining",
+        photo: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&auto=format&fit=crop&q=60",
+        access: "南口 徒歩2分", address: "札幌市中央区北5条西2丁目", hoursText: "7:30–19:00", closedText: "不定休",
+        hours: [[450, 1140]], closed: [], note: "朝7時半から。売り切れ次第終了",
+        ticket: { title: "200円引き", detail: "800円以上のお会計で", cost: 120 }
+      },
+      {
+        id: "notre", name: "自習カフェ ノートル", genre: "自習スペース", icon: "menu_book",
+        photo: "https://images.unsplash.com/photo-1521017432531-fbd92d768814?w=600&auto=format&fit=crop&q=60",
+        access: "西改札 徒歩6分", address: "札幌市北区北6条西6丁目", hoursText: "9:00–23:00", closedText: "なし",
+        hours: [[540, 1380]], closed: [], note: "Wi-Fi・電源・ドリンク飲み放題",
+        ticket: { title: "2時間 無料", detail: "通常2時間800円のプラン", cost: 150 }
+      }
+    ];
+    const STORES = Object.fromEntries(PARTNER_STORES.map(s => [s.id, s.name]));
+    const storeById = (id) => PARTNER_STORES.find(s => s.id === id);
+    // 今、営業中か（定休日・昼休みも考慮）
+    function isOpenNow(store, ms = Date.now()) {
+      const d = new Date(ms);
+      if (store.closed.includes(d.getDay())) return false;
+      const m = d.getHours() * 60 + d.getMinutes();
+      return store.hours.some(([a, b]) => m >= a && m < b);
+    }
+    const mapUrl = (store) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.address + " " + store.name)}`;
+    const TICKET_VALID_DAYS = 30;
+
+    // お店の写真（読み込めないときはアイコン）
+    function StoreThumb({ store, className, iconSize = 28 }) {
+      const [bad, setBad] = useState(false);
+      return (
+        <div className={cx("relative overflow-hidden bg-brand-tint flex items-center justify-center flex-shrink-0", className)}>
+          {store.photo && !bad
+            ? <img src={store.photo} alt={`${store.name}の写真`} loading="lazy" onError={() => setBad(true)} className="absolute inset-0 w-full h-full object-cover" />
+            : <Icon n={store.icon} fill size={iconSize} className="text-brand-deep" />}
+        </div>
+      );
+    }
+    function OpenBadge({ store }) {
+      const open = isOpenNow(store);
+      return (
+        <span className={cx("inline-flex items-center gap-1 text-[11px] font-bold", open ? "text-brand-deep" : "text-mute")}>
+          <span className={cx("w-1.5 h-1.5 rounded-full", open ? "bg-brand" : "bg-mute/60")}></span>{open ? "営業中" : "営業時間外"}
+        </span>
+      );
+    }
     const QR_PREFIX = "TUNAGARI";
 
     const pad2 = (n) => String(n).padStart(2, "0");
@@ -824,20 +893,27 @@
     function StoreRedeemScreen({ coupon, onClose, onRedeem }) {
       const now = useNow(1000);
       const [step, setStep] = useState(coupon.isUsed ? "done" : "scan");   // scan → confirm → done
+      const bodyRef = useRef(null);
+      useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [step]);
       const [scan, setScan] = useState(null);       // { storeId, storeName, at }
       const [scanError, setScanError] = useState("");
       const handleScan = (text) => {
         const r = checkStoreQr(text);
-        if (!r.ok) { setScanError(r.reason); return; }
+        if (!r.ok) { setScanError(r.reason); return false; }
+        if (coupon.storeId && r.storeId !== coupon.storeId) {
+          setScanError(`このチケットは「${STORES[coupon.storeId] || "別のお店"}」で使えます`);
+          return false;
+        }
         setScanError("");
         setScan({ storeId: r.storeId, storeName: r.storeName, at: Date.now() });
         setStep("confirm");
+        return true;
       };
       const [scanKey, setScanKey] = useState(0);   // 読み取りやり直し用
 
       return (
         <div className="fixed inset-0 z-[80] bg-[#151717] text-white flex flex-col animate-fade-in" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
-          <div className="w-full max-w-md mx-auto flex-1 flex flex-col px-5 gap-4 overflow-y-auto">
+          <div ref={bodyRef} className="w-full max-w-md mx-auto flex-1 flex flex-col px-5 gap-4 overflow-y-auto">
             <div className="flex items-center justify-between">
               <span className="inline-flex items-center gap-1.5 bg-white text-[#151717] text-[12px] font-black px-3 py-1.5 rounded-full">
                 <Icon n="storefront" fill size={16} />お店で使う
@@ -866,14 +942,15 @@
             {step === "scan" && (
               <div className="space-y-3 animate-fade-in">
                 <p className="text-center font-head font-black text-[18px]">レジにあるお店のQRを読み取ってください</p>
-                <QrScanner key={scanKey} onResult={(t) => { handleScan(t); if (!checkStoreQr(t).ok) setTimeout(() => setScanKey(k => k + 1), 1800); }} />
+                <QrScanner key={scanKey} onResult={(t) => { if (!handleScan(t)) setTimeout(() => setScanKey(k => k + 1), 1800); }} />
                 {scanError && <p className="text-center text-[13px] font-bold text-[#ff8a8a]">{scanError}</p>}
-                <div className="rounded-2xl bg-white/5 px-4 py-3 text-[12px] text-white/70">
-                  <span className="font-bold text-white">{coupon.title}</span>
+                <div className="rounded-2xl bg-white/5 px-4 py-3 text-[12px] text-white/70 flex justify-between gap-2">
+                  <span className="font-bold text-white truncate">{coupon.title}</span>
+                  {coupon.expires && <span className="flex-shrink-0">期限 {coupon.expires}</span>}
                 </div>
                 {/* デモ用：カメラが使えないPCでも流れを確認できるように */}
-                <button onClick={() => handleScan(storeQrText("hokubu", Date.now()))} className="w-full text-[12px] text-white/45 underline py-1">
-                  デモ：読み取ったことにする（{STORES.hokubu}）
+                <button onClick={() => handleScan(storeQrText(coupon.storeId || PARTNER_STORES[0].id, Date.now()))} className="w-full text-[12px] text-white/45 underline py-1">
+                  デモ：読み取ったことにする（{STORES[coupon.storeId] || PARTNER_STORES[0].name}）
                 </button>
               </div>
             )}
@@ -936,7 +1013,7 @@
 
     function makeInitialCoupons(U) {
       return [
-        { id: 901, title: `${U.dining} 100円オフクーポン`, cost: 50, date: "2026-08-15", code: "CAMPUS-CAF-8821", isUsed: false }
+        { id: 901, storeId: "hoshino", title: "喫茶 ほしのみち｜ドリンク1杯 無料", cost: 100, date: "2026-10-10", expires: "2026-11-09", code: "TNG-HOSHI-8821", isUsed: false }
       ];
     }
 
@@ -1477,9 +1554,10 @@
       const [aiAnalysisResult, setAiAnalysisResult] = useState(null);
 
       const [openPointExchangeModal, setOpenPointExchangeModal] = useState(false);
-      const [myCoupons, setMyCoupons] = usePersistentState("myCoupons", () => makeInitialCoupons(U));
+      const [myCoupons, setMyCoupons] = usePersistentState("myCoupons2", () => makeInitialCoupons(U));
       const [activeTabPointModal, setActiveTabPointModal] = useState("exchange");
       const [activeCouponForUse, setActiveCouponForUse] = useState(null);
+      const [selectedStore, setSelectedStore] = useState(null);   // 協力店の詳細シート
 
       // 🔍 改善した検索ステート
       const [searchQuery, setSearchQuery] = useState("");
@@ -1517,6 +1595,20 @@
       const [reportReason, setReportReason] = useState("");
       const [reportedIds, setReportedIds] = usePersistentState("reportedIds", () => []);
       const [verified, setVerified] = usePersistentState("verified", () => false);
+
+      // 📜 画面を切り替えたら、スクロール位置を先頭に戻す
+      useEffect(() => { window.scrollTo(0, 0); }, [currentTab, verified]);
+      // マイページ内の切替（自分の投稿／気になる／活動ログ）は、切替ボタンが見える位置まで戻す
+      const subTabRef = useRef(null);
+      useEffect(() => {
+        const el = subTabRef.current;
+        if (!el) return;
+        const top = el.getBoundingClientRect().top + window.scrollY - 76;   // ヘッダーの高さぶん
+        if (window.scrollY > top) window.scrollTo(0, top);
+      }, [myPageSubTab]);
+      // ポイント交換シート内のタブ切替でも先頭へ
+      const pointScrollRef = useRef(null);
+      useEffect(() => { if (pointScrollRef.current) pointScrollRef.current.scrollTop = 0; }, [activeTabPointModal]);
       const [bannerDismissed, setBannerDismissed] = usePersistentState("bannerDismissed", () => false);
       const [showAllAnswers, setShowAllAnswers] = useState(false);
       useEffect(() => { setShowAllAnswers(false); }, [selectedPostId]);
@@ -1621,17 +1713,21 @@
         }
 
         setUserThanks(prev => prev - item.cost);
+        const ymd = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
         const newCoupon = {
           id: Date.now(),
+          storeId: item.storeId,
           title: item.title,
           cost: item.cost,
-          date: new Date().toISOString().split('T')[0],
-          code: `CAMPUS-CAF-${Math.floor(1000 + Math.random() * 9000)}`,
+          date: ymd(Date.now()),
+          expires: ymd(Date.now() + TICKET_VALID_DAYS * 86400000),
+          code: `TNG-${item.storeId.slice(0, 5).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
           isUsed: false
         };
 
         setMyCoupons([newCoupon, ...myCoupons]);
-        showToast(`☕ ${item.title} に交換しました！`);
+        setSelectedStore(null);
+        showToast(`${item.title} に交換しました`);
         setActiveTabPointModal("myCoupons");
       };
 
@@ -2564,6 +2660,7 @@ ${logsText}
                   </div>
                 </div>
 
+                <div ref={subTabRef}></div>
                 <Segmented
                   value={myPageSubTab}
                   onChange={setMyPageSubTab}
@@ -2752,7 +2849,7 @@ ${logsText}
             ) : (
               <button
                 key={item.tab}
-                onClick={() => setCurrentTab(item.tab)}
+                onClick={() => { if (currentTab === item.tab) window.scrollTo({ top: 0, behavior: "smooth" }); else setCurrentTab(item.tab); }}
                 aria-current={currentTab === item.tab ? "page" : undefined}
                 className={cx(
                   "flex flex-col items-center gap-0.5 py-1.5 px-1.5 rounded-full min-w-[58px] press",
@@ -2818,7 +2915,7 @@ ${logsText}
                 </div>
               </div>
 
-              <div className="px-5 pb-4 pt-2 overflow-y-auto space-y-4 flex-1">
+              <div key={selectedPost.id} className="px-5 pb-4 pt-2 overflow-y-auto space-y-4 flex-1">
                 <h2 className="font-head font-black text-[20px] leading-snug">{selectedPost.title.replace(/^【質問】\s*/, "")}</h2>
                 <p className="text-[14px] text-sub leading-relaxed break-words whitespace-pre-wrap">{selectedPost.content}</p>
                 {extractTags(selectedPost).length > 0 && (
@@ -3508,7 +3605,7 @@ ${logsText}
 
           {openPointExchangeModal && (
             <Sheet onClose={() => setOpenPointExchangeModal(false)}>
-              <SheetHeader title="学内カフェ・生協 ポイント交換" icon="local_cafe" onClose={() => setOpenPointExchangeModal(false)} />
+              <SheetHeader title="ポイント交換" icon="confirmation_number" onClose={() => setOpenPointExchangeModal(false)} />
 
               <div className="mx-5 mb-3 bg-ask-tint rounded-3xl p-3.5 flex justify-between items-center">
                 <span className="text-sub font-bold text-[13px]">保有ポイント</span>
@@ -3529,48 +3626,42 @@ ${logsText}
                 />
               </div>
 
-              <div className="px-5 pb-5 overflow-y-auto space-y-3 flex-1">
+              <div ref={pointScrollRef} className="px-5 pb-5 overflow-y-auto space-y-3 flex-1">
                 {activeTabPointModal === "exchange" && (
-                  <div className="space-y-3">
-                    <p className="text-[13px] text-sub leading-relaxed">
-                      学内カフェ・生協のチケットに交換
-                    </p>
-
-                    {[
-                      { tag: "学内カフェ提携", tagTone: "bg-ask-tint text-ask-ink", name: "☕ 学内カフェ ドリンク1杯無料チケット", desc: "全ドリンク対象（ブレンド・ラテ・季節のドリンク）", cost: 100, title: "学内カフェ ドリンク1杯無料チケット", unit: "チケット" },
-                      { tag: "カフェ・購買共通", tagTone: "bg-brand-tint text-brand-deep", name: "🥤 学内カフェ＆生協 100円引き電子クーポン", desc: `カフェ全商品・${U.dining}のお会計で利用可能`, cost: 50, title: "学内カフェ＆生協 100円引きクーポン", unit: "クーポン" }
-                    ].map(item => (
-                      <div key={item.cost} className="bg-surface p-4 rounded-3xl shadow-soft border border-line/70 space-y-3">
-                        <div className="flex justify-between items-start gap-2">
-                          <div className="min-w-0">
-                            <span className={cx("text-[12px] font-black px-2.5 py-0.5 rounded-full", item.tagTone)}>{item.tag}</span>
-                            <h4 className="font-bold text-[15px] mt-1.5 leading-snug">{item.name}</h4>
-                            <p className="text-[12px] text-sub mt-0.5">{item.desc}</p>
-                          </div>
-                          <span className="font-head font-black text-ask-ink text-[14px] bg-ask-tint px-3 py-1 rounded-full flex-shrink-0">{item.cost} pt</span>
-                        </div>
+                  <div className="space-y-2.5">
+                    <p className="text-[13px] text-sub flex items-center gap-1"><Icon n="train" size={16} className="text-brand-deep" />札幌駅周辺のお店で使えます</p>
+                    {PARTNER_STORES.map(store => {
+                      const enough = userThanks >= store.ticket.cost;
+                      return (
                         <button
-                          onClick={() => handleExchangePoint({ title: item.title, cost: item.cost })}
-                          disabled={userThanks < item.cost}
-                          className={cx(
-                            "w-full py-3 rounded-2xl font-black text-[14px] press",
-                            userThanks >= item.cost ? "bg-brand text-on-brand shadow-soft" : "bg-sunk text-mute cursor-not-allowed"
-                          )}
+                          key={store.id}
+                          onClick={() => setSelectedStore(store)}
+                          className="w-full text-left bg-surface p-3 rounded-3xl shadow-soft border border-line/70 flex gap-3 items-center press"
                         >
-                          {userThanks >= item.cost ? `${item.cost}ptで${item.unit}に交換する` : "ポイントが不足しています"}
+                          <StoreThumb store={store} className="w-[72px] h-[72px] rounded-2xl" />
+                          <span className="min-w-0 flex-1 space-y-0.5">
+                            <span className="block text-[12px] text-mute truncate">{store.name}</span>
+                            <span className="block font-head font-black text-[16px] leading-snug">{store.ticket.title}</span>
+                            <span className="flex items-center gap-2 text-[11px] text-sub">
+                              <span className="flex items-center gap-0.5"><Icon n="directions_walk" size={14} />{store.access}</span>
+                              <OpenBadge store={store} />
+                            </span>
+                          </span>
+                          <span className={cx("font-head font-black text-[13px] px-2.5 py-1 rounded-full flex-shrink-0", enough ? "bg-brand-tint text-brand-deep" : "bg-sunk text-mute")}>{store.ticket.cost}pt</span>
                         </button>
-                      </div>
-                    ))}
+                      );
+                    })}
+                    <p className="text-[11px] text-mute text-center pt-1">※ 掲載店はサンプルです</p>
                   </div>
                 )}
 
                 {activeTabPointModal === "myCoupons" && (
                   <div className="space-y-3">
-                    <p className="text-[13px] text-sub">レジで「お店で使う」→ お店のQRを読み取り</p>
+                    <p className="text-[13px] text-sub">お店のレジで「お店で使う」→ QRを読み取り</p>
 
                     {myCoupons.length === 0 ? (
                       <div className="py-8 text-center text-mute text-[13px]">
-                        所持しているチケットはありません。「ポイントを使う」から交換できます。
+                        チケットはまだありません
                       </div>
                     ) : (
                       myCoupons.map(coupon => (
@@ -3581,11 +3672,24 @@ ${logsText}
                             coupon.isUsed ? "bg-sunk" : "bg-surface border-2 border-dashed border-brand/50"
                           )}
                         >
-                          <div className="flex justify-between items-center text-[12px] mb-1">
-                            <span className="text-mute font-mono font-bold">{coupon.code}</span>
-                            <span className="text-sub">{coupon.date} 交換</span>
-                          </div>
-                          <h4 className="font-bold text-[15px] mb-3">{coupon.title}</h4>
+                          {(() => {
+                            const st = storeById(coupon.storeId);
+                            return (
+                              <div className="flex gap-3 items-center mb-3">
+                                {st && <StoreThumb store={st} className="w-14 h-14 rounded-2xl" iconSize={24} />}
+                                <div className="min-w-0 flex-1">
+                                  <h4 className="font-bold text-[15px] leading-snug">{st ? st.ticket.title : coupon.title}</h4>
+                                  {st && <p className="text-[12px] text-sub truncate">{st.name}</p>}
+                                  <p className="text-[11px] text-mute">{coupon.isUsed ? coupon.code : `期限 ${coupon.expires || "—"}`}</p>
+                                </div>
+                                {st && !coupon.isUsed && (
+                                  <button onClick={() => setSelectedStore(st)} aria-label={`${st.name}のお店情報`} className="w-9 h-9 rounded-full bg-sunk text-sub flex items-center justify-center flex-shrink-0 press">
+                                    <Icon n="info" size={20} />
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()}
 
                           {coupon.isUsed ? (
                             <button onClick={() => setActiveCouponForUse(coupon)} className="w-full text-left bg-surface rounded-2xl px-3.5 py-2.5 text-[12px] text-sub space-y-0.5 press">
@@ -3606,6 +3710,68 @@ ${logsText}
                     )}
                   </div>
                 )}
+              </div>
+            </Sheet>
+          )}
+
+          {/* 🏬 協力店の詳細（必要な情報だけ：写真・特典・アクセス・営業時間） */}
+          {selectedStore && (
+            <Sheet onClose={() => setSelectedStore(null)} z={60}>
+              <div className="overflow-y-auto">
+                <div className="relative mx-5 rounded-3xl overflow-hidden aspect-[16/9]">
+                  <StoreThumb store={selectedStore} className="absolute inset-0 w-full h-full" iconSize={48} />
+                  <button onClick={() => setSelectedStore(null)} aria-label="閉じる" className="absolute top-2.5 right-2.5 w-9 h-9 rounded-full bg-surface/90 text-ink flex items-center justify-center shadow-soft press">
+                    <Icon n="close" size={20} />
+                  </button>
+                </div>
+                <div className="px-5 pt-4 pb-5 space-y-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-[12px] text-sub">
+                      <span>{selectedStore.genre}</span><OpenBadge store={selectedStore} />
+                    </div>
+                    <h3 className="font-head font-black text-[20px] leading-tight">{selectedStore.name}</h3>
+                    <p className="text-[13px] text-sub">{selectedStore.note}</p>
+                  </div>
+
+                  <div className="bg-brand-tint rounded-2xl p-3.5 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-head font-black text-[17px] text-brand-deep leading-snug">{selectedStore.ticket.title}</p>
+                      <p className="text-[12px] text-sub">{selectedStore.ticket.detail}</p>
+                    </div>
+                    <span className="font-head font-black text-[15px] text-brand-deep flex-shrink-0">{selectedStore.ticket.cost}pt</span>
+                  </div>
+
+                  <div className="space-y-2.5 text-[13px]">
+                    <a href={mapUrl(selectedStore)} target="_blank" rel="noopener" className="flex items-start gap-2.5 press">
+                      <Icon n="location_on" size={20} className="text-mute mt-px" />
+                      <span className="flex-1 min-w-0">
+                        <span className="block">{selectedStore.address}</span>
+                        <span className="block text-[12px] text-sub">札幌駅 {selectedStore.access}</span>
+                      </span>
+                      <span className="text-[12px] font-bold text-brand-deep flex items-center flex-shrink-0">地図<Icon n="chevron_right" size={16} /></span>
+                    </a>
+                    <div className="flex items-start gap-2.5">
+                      <Icon n="schedule" size={20} className="text-mute mt-px" />
+                      <span className="flex-1">
+                        <span className="block">{selectedStore.hoursText}</span>
+                        <span className="block text-[12px] text-sub">定休日：{selectedStore.closedText}</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-mute">交換から{TICKET_VALID_DAYS}日間有効・1回1枚・他の割引と併用不可</p>
+
+                  {userThanks >= selectedStore.ticket.cost ? (
+                    <button
+                      onClick={() => handleExchangePoint({ storeId: selectedStore.id, title: `${selectedStore.name}｜${selectedStore.ticket.title}`, cost: selectedStore.ticket.cost })}
+                      className={cx(BTN_PRIMARY, "w-full")}
+                    >
+                      {selectedStore.ticket.cost}ptで交換する
+                    </button>
+                  ) : (
+                    <div className="w-full py-3.5 rounded-2xl bg-sunk text-mute font-bold text-[14px] text-center">あと{selectedStore.ticket.cost - userThanks}pt で交換できます</div>
+                  )}
+                </div>
               </div>
             </Sheet>
           )}
