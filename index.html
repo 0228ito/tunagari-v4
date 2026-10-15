@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <!-- スマホの画面幅に合わせて自動スケーリングするメタタグ -->
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>大学生向けリアル情報ポータル</title>
+  <title>大学生向けリアル情報ポータル｜TUNAGARI</title>
   <meta name="color-scheme" content="light dark">
 
   <!-- 📱 PWA用設定タグ -->
@@ -66,6 +66,8 @@
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- QRコード読み取り（店頭のお店QRを読むため） -->
+  <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 
   <style>
     /* ============================================================
@@ -207,6 +209,14 @@
     @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .animate-fade-up { animation: fadeUp .4s cubic-bezier(.22,1,.36,1) both; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    /* 完了画面：常に動き続けるバー（静止画＝スクリーンショットではないことの確認用） */
+    @keyframes liveSweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+    .live-sweep { animation: liveSweep 1.6s linear infinite; }
+    @keyframes stampIn { 0% { transform: scale(1.8) rotate(-12deg); opacity: 0; } 60% { transform: scale(.92) rotate(-12deg); opacity: 1; } 100% { transform: scale(1) rotate(-12deg); opacity: 1; } }
+    .animate-stamp { animation: stampIn .45s cubic-bezier(.34,1.56,.64,1) both; }
+    /* 読み取り枠のスキャンライン */
+    @keyframes scanLine { 0% { top: 8%; } 50% { top: 88%; } 100% { top: 8%; } }
+    .scan-line { animation: scanLine 2.4s ease-in-out infinite; }
     .animate-fade-in { animation: fadeIn .25s ease-out both; }
     @keyframes popIn { 0% { opacity: 0; transform: translate(-50%, -8px) scale(.94); } 100% { opacity: 1; transform: translate(-50%, 0) scale(1); } }
     .animate-pop { animation: popIn .28s cubic-bezier(.34,1.56,.64,1) both; }
@@ -659,6 +669,269 @@
           image: null
         }
       ];
+    }
+
+    // ============================================================
+    // 🎫 クーポンの店頭利用（非接触：お客様が「お店のQR」を読んで、自分で確定）
+    //   1. レジに置いた「お店のQR（週替わり）」をお客様のカメラで読む → その場にいる証明
+    //   2. お客様がスライドして確定 → 偶然では起きない、本人の意思による操作
+    //   3. 完了画面（動く時計・受付番号）を店員さんが目で見て確認 → スマホに触れない
+    //   ・確定時に「読み取り日時・使用日時（秒まで）・店舗・受付番号」を記録
+    //   ・お店のQRは週ごとに変わる（今週・先週分のみ有効）。印刷用ページ：store_qr.html
+    //   ※ 本番ではQRの中身にサーバー署名を付け、照合と記録はサーバーで行う想定
+    // ============================================================
+    const STORES = {
+      hokubu: `${U.dining}`,
+      cafe: "学内カフェ"
+    };
+    const QR_PREFIX = "TUNAGARI";
+
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const fmtDateTime = (ms) => { const d = new Date(ms); return `${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; };
+    const fmtClock = (ms) => { const d = new Date(ms); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; };
+    const fmtDay = (ms) => { const d = new Date(ms); return `${d.getMonth() + 1}月${d.getDate()}日（${"日月火水木金土"[d.getDay()]}）`; };
+    // ISO週（月曜はじまり）。例：2026-W42
+    function isoWeekKey(ms) {
+      const d = new Date(ms);
+      const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+      const day = t.getUTCDay() || 7;
+      t.setUTCDate(t.getUTCDate() + 4 - day);
+      const y = t.getUTCFullYear();
+      const w = Math.ceil(((t - Date.UTC(y, 0, 1)) / 86400000 + 1) / 7);
+      return `${y}-W${pad2(w)}`;
+    }
+    const storeQrText = (storeId, ms) => `${QR_PREFIX}|${UNIV_ID}|${storeId}|${isoWeekKey(ms)}`;
+    // 読み取った文字を確認 → { ok, storeId, storeName } か { ok:false, reason }
+    function checkStoreQr(text) {
+      const parts = String(text || "").trim().split("|");
+      if (parts.length !== 4 || parts[0] !== QR_PREFIX) return { ok: false, reason: "お店のQRではありません" };
+      const [, univ, storeId, week] = parts;
+      if (univ !== UNIV_ID || !STORES[storeId]) return { ok: false, reason: "このクーポンが使えないお店です" };
+      const now = Date.now();
+      const valid = [isoWeekKey(now), isoWeekKey(now - 7 * 86400000)];   // 今週＋先週（貼り替え忘れの猶予）
+      if (!valid.includes(week)) return { ok: false, reason: "このQRは期限切れです。店員さんにお知らせください" };
+      return { ok: true, storeId, storeName: STORES[storeId] };
+    }
+
+    function useNow(interval = 1000) {
+      const [t, setT] = useState(Date.now());
+      useEffect(() => { const i = setInterval(() => setT(Date.now()), interval); return () => clearInterval(i); }, [interval]);
+      return t;
+    }
+
+    // カメラでQRを読む（対応端末はBarcodeDetector、それ以外はjsQR）
+    function QrScanner({ onResult }) {
+      const videoRef = useRef(null);
+      const canvasRef = useRef(null);
+      const [error, setError] = useState("");
+      const doneRef = useRef(false);
+      useEffect(() => {
+        let stream = null, raf = 0, detector = null, stopped = false;
+        const stop = () => { stopped = true; cancelAnimationFrame(raf); if (stream) stream.getTracks().forEach(t => t.stop()); };
+        const emit = (txt) => { if (doneRef.current || !txt) return; doneRef.current = true; stop(); onResult(txt); };
+        (async () => {
+          try {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("no-camera");
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+            if (stopped) { stream.getTracks().forEach(t => t.stop()); return; }
+            const v = videoRef.current;
+            v.srcObject = stream; v.setAttribute("playsinline", ""); await v.play();
+            if ("BarcodeDetector" in window) { try { detector = new window.BarcodeDetector({ formats: ["qr_code"] }); } catch (e) { detector = null; } }
+            const tick = async () => {
+              if (stopped) return;
+              if (v.readyState >= 2) {
+                try {
+                  if (detector) {
+                    const r = await detector.detect(v);
+                    if (r && r[0]) return emit(r[0].rawValue);
+                  } else if (window.jsQR) {
+                    const c = canvasRef.current, w = 480, hh = Math.round(480 * (v.videoHeight / Math.max(1, v.videoWidth)));
+                    c.width = w; c.height = hh;
+                    const ctx = c.getContext("2d", { willReadFrequently: true });
+                    ctx.drawImage(v, 0, 0, w, hh);
+                    const img = ctx.getImageData(0, 0, w, hh);
+                    const code = window.jsQR(img.data, w, hh, { inversionAttempts: "dontInvert" });
+                    if (code && code.data) return emit(code.data);
+                  }
+                } catch (e) { /* 次のフレームで再試行 */ }
+              }
+              raf = requestAnimationFrame(tick);
+            };
+            raf = requestAnimationFrame(tick);
+          } catch (e) {
+            setError("カメラを使えませんでした。ブラウザの設定でカメラを許可してください");
+          }
+        })();
+        return stop;
+      }, []);
+      return (
+        <div className="relative w-full aspect-square rounded-3xl overflow-hidden bg-black">
+          <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" muted playsInline></video>
+          <canvas ref={canvasRef} className="hidden"></canvas>
+          {/* 読み取り枠 */}
+          <div className="absolute inset-[12%] rounded-3xl border-[3px] border-white/90 pointer-events-none">
+            <div className="absolute left-3 right-3 h-0.5 bg-brand shadow-[0_0_12px_rgb(53_181_151)] scan-line"></div>
+          </div>
+          {error && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center bg-black/80">
+              <Icon n="no_photography" size={36} className="text-white/70" />
+              <p className="text-[13px] text-white/85 leading-relaxed">{error}</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // スライドして確定（端まで動かさないと確定しない。途中で離すと戻る）
+    function SlideToConfirm({ label, onDone }) {
+      const track = useRef(null);
+      const [x, setX] = useState(0);
+      const [drag, setDrag] = useState(false);
+      const startX = useRef(0);
+      const KNOB = 56;
+      const maxX = () => (track.current ? track.current.clientWidth - KNOB - 8 : 240);
+      const down = (e) => {
+        startX.current = e.clientX - x; setDrag(true);
+        if (e.currentTarget.setPointerCapture) { try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {} }
+      };
+      const move = (e) => { if (drag) setX(Math.min(maxX(), Math.max(0, e.clientX - startX.current))); };
+      const up = () => {
+        if (!drag) return;
+        setDrag(false);
+        if (x >= maxX() * 0.94) { setX(maxX()); setTimeout(onDone, 120); } else setX(0);
+      };
+      const pct = Math.min(1, x / Math.max(1, maxX()));
+      return (
+        <div ref={track} className="relative h-16 rounded-full bg-white/10 border border-white/15 overflow-hidden select-none touch-none">
+          <div className="absolute inset-y-0 left-0 bg-brand/35 rounded-full" style={{ width: x + KNOB + 8 }}></div>
+          <span className="absolute inset-0 flex items-center justify-center pl-14 text-[15px] font-black text-white pointer-events-none" style={{ opacity: Math.max(0, 1 - pct * 1.6) }}>
+            {label}
+          </span>
+          <button
+            type="button"
+            onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
+            aria-label={label}
+            className="absolute top-1 left-1 w-14 h-14 rounded-full bg-brand text-white flex items-center justify-center shadow-lift cursor-grab touch-none"
+            style={{ transform: `translateX(${x}px)`, transition: drag ? "none" : "transform .25s cubic-bezier(.22,1,.36,1)" }}
+          >
+            <Icon n="keyboard_double_arrow_right" size={30} />
+          </button>
+        </div>
+      );
+    }
+
+    // お店で使う（全画面）：QR読み取り → スライドで確定 → 完了画面を見せる
+    function StoreRedeemScreen({ coupon, onClose, onRedeem }) {
+      const now = useNow(1000);
+      const [step, setStep] = useState(coupon.isUsed ? "done" : "scan");   // scan → confirm → done
+      const [scan, setScan] = useState(null);       // { storeId, storeName, at }
+      const [scanError, setScanError] = useState("");
+      const handleScan = (text) => {
+        const r = checkStoreQr(text);
+        if (!r.ok) { setScanError(r.reason); return; }
+        setScanError("");
+        setScan({ storeId: r.storeId, storeName: r.storeName, at: Date.now() });
+        setStep("confirm");
+      };
+      const [scanKey, setScanKey] = useState(0);   // 読み取りやり直し用
+
+      return (
+        <div className="fixed inset-0 z-[80] bg-[#151717] text-white flex flex-col animate-fade-in" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
+          <div className="w-full max-w-md mx-auto flex-1 flex flex-col px-5 gap-4 overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 bg-white text-[#151717] text-[12px] font-black px-3 py-1.5 rounded-full">
+                <Icon n="storefront" fill size={16} />お店で使う
+              </span>
+              <button onClick={onClose} aria-label="閉じる" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center press">
+                <Icon n="close" size={22} />
+              </button>
+            </div>
+
+            {/* 手順の現在地 */}
+            <div className="flex items-center gap-1.5 text-[12px] font-bold">
+              {[["scan", "QRを読む"], ["confirm", "スライド"], ["done", "見せる"]].map(([k, l], i) => {
+                const idx = ["scan", "confirm", "done"].indexOf(step);
+                const on = i <= idx;
+                return (
+                  <React.Fragment key={k}>
+                    {i > 0 && <span className={cx("flex-1 h-px", on ? "bg-brand" : "bg-white/15")}></span>}
+                    <span className={cx("flex items-center gap-1", on ? "text-white" : "text-white/40")}>
+                      <span className={cx("w-5 h-5 rounded-full text-[11px] flex items-center justify-center", on ? "bg-brand text-white" : "bg-white/10")}>{i + 1}</span>{l}
+                    </span>
+                  </React.Fragment>
+                );
+              })}
+            </div>
+
+            {step === "scan" && (
+              <div className="space-y-3 animate-fade-in">
+                <p className="text-center font-head font-black text-[18px]">レジにあるお店のQRを読み取ってください</p>
+                <QrScanner key={scanKey} onResult={(t) => { handleScan(t); if (!checkStoreQr(t).ok) setTimeout(() => setScanKey(k => k + 1), 1800); }} />
+                {scanError && <p className="text-center text-[13px] font-bold text-[#ff8a8a]">{scanError}</p>}
+                <div className="rounded-2xl bg-white/5 px-4 py-3 text-[12px] text-white/70">
+                  <span className="font-bold text-white">{coupon.title}</span>
+                </div>
+                {/* デモ用：カメラが使えないPCでも流れを確認できるように */}
+                <button onClick={() => handleScan(storeQrText("hokubu", Date.now()))} className="w-full text-[12px] text-white/45 underline py-1">
+                  デモ：読み取ったことにする（{STORES.hokubu}）
+                </button>
+              </div>
+            )}
+
+            {step === "confirm" && scan && (
+              <div className="flex-1 flex flex-col gap-4 animate-fade-in">
+                <div className="rounded-3xl bg-white text-[#222] p-5 text-center space-y-1">
+                  <p className="text-[12px] font-bold text-[#1c8068] flex items-center justify-center gap-1"><Icon n="check_circle" fill size={16} />{scan.storeName} を確認しました</p>
+                  <p className="font-head font-black text-[20px] leading-snug pt-1">{coupon.title}</p>
+                  <p className="text-[12px] text-[#666]">{coupon.code}</p>
+                </div>
+                <div className="flex-1"></div>
+                <div className="space-y-3">
+                  <p className="text-center text-[13px] text-white/85 font-bold">レジでお会計のときにスライド</p>
+                  <SlideToConfirm label="スライドして使う" onDone={() => { onRedeem(coupon.id, scan); setStep("done"); }} />
+                  <p className="text-center text-[11px] text-white/50">スライドすると使用済みになり、取り消せません</p>
+                </div>
+              </div>
+            )}
+
+            {step === "done" && coupon.usedAt && (
+              <div className="flex-1 flex flex-col gap-4 animate-fade-in">
+                <p className="text-center font-head font-black text-[18px]">この画面を店員さんに見せてください</p>
+                {/* 生きている画面の証明：秒まで動く時計＋動き続けるバー */}
+                <div className="rounded-3xl bg-white/5 border border-white/10 p-4 text-center space-y-1.5">
+                  <p className="text-[12px] text-white/60">{fmtDay(now)}</p>
+                  <p className="font-head font-black text-[40px] leading-none tracking-wider tabular-nums">{fmtClock(now)}</p>
+                  <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mt-2">
+                    <div className="h-full w-1/3 bg-brand rounded-full live-sweep"></div>
+                  </div>
+                  <p className="text-[11px] text-white/50">時計とバーが動いていれば、本物の画面です</p>
+                </div>
+                <div className="relative rounded-3xl bg-white text-[#222] p-5 pb-8 text-center space-y-1 overflow-hidden">
+                  <p className="font-head font-black text-[20px] leading-snug">{coupon.title}</p>
+                  <p className="text-[12px] text-[#666]">{coupon.code}</p>
+                  <div className="absolute right-3 bottom-2 pointer-events-none">
+                    <span className="animate-stamp inline-block border-[3px] border-[#d64550] text-[#d64550] font-head font-black text-[18px] px-3 py-0.5 rounded-xl bg-white/90">使用済み</span>
+                  </div>
+                </div>
+                <div className="rounded-3xl bg-white/5 border border-white/10 p-4 space-y-2 text-[13px]">
+                  {[
+                    ["使用日時", fmtDateTime(coupon.usedAt)],
+                    ["店舗", coupon.store],
+                    ["受付番号", coupon.receipt]
+                  ].map(([k, val]) => (
+                    <div key={k} className="flex justify-between gap-3">
+                      <span className="text-white/55">{k}</span>
+                      <span className="font-bold tabular-nums text-right">{val}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex-1"></div>
+                <button onClick={onClose} className={cx(BTN_PRIMARY, "w-full")}>とじる</button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
     }
 
     function makeInitialCoupons(U) {
@@ -1362,10 +1635,13 @@
         setActiveTabPointModal("myCoupons");
       };
 
-      const handleUseCoupon = (couponId) => {
-        setMyCoupons(prev => prev.map(c => c.id === couponId ? { ...c, isUsed: true } : c));
-        setActiveCouponForUse(null);
-        showToast("✅ クーポンを使用しました！カフェでのご利用ありがとうございます。");
+      // 使用記録：読み取り日時・使用日時（秒まで）・店舗・受付番号（本番はサーバーに保存）
+      const handleUseCoupon = (couponId, scan) => {
+        const usedAt = Date.now();
+        const receipt = `R-${String(usedAt).slice(-6)}`;
+        const rec = { isUsed: true, usedAt, scannedAt: scan.at, storeId: scan.storeId, store: scan.storeName, receipt, method: "store-qr" };
+        setMyCoupons(prev => prev.map(c => c.id === couponId ? { ...c, ...rec } : c));
+        setActiveCouponForUse(prev => prev && prev.id === couponId ? { ...prev, ...rec } : prev);
       };
 
       const handleLogImageSelect = (e) => {
@@ -3290,9 +3566,7 @@ ${logsText}
 
                 {activeTabPointModal === "myCoupons" && (
                   <div className="space-y-3">
-                    <p className="text-[13px] text-sub leading-relaxed">
-                      交換済みのチケットです。カフェのレジで「利用する」を押して画面を提示してください。
-                    </p>
+                    <p className="text-[13px] text-sub">レジで「お店で使う」→ お店のQRを読み取り</p>
 
                     {myCoupons.length === 0 ? (
                       <div className="py-8 text-center text-mute text-[13px]">
@@ -3304,24 +3578,27 @@ ${logsText}
                           key={coupon.id}
                           className={cx(
                             "p-4 rounded-3xl",
-                            coupon.isUsed ? "bg-sunk opacity-60" : "bg-ask-tint border-2 border-dashed border-ask"
+                            coupon.isUsed ? "bg-sunk" : "bg-surface border-2 border-dashed border-brand/50"
                           )}
                         >
                           <div className="flex justify-between items-center text-[12px] mb-1">
-                            <span className="text-ask-ink font-mono font-bold">{coupon.code}</span>
+                            <span className="text-mute font-mono font-bold">{coupon.code}</span>
                             <span className="text-sub">{coupon.date} 交換</span>
                           </div>
                           <h4 className="font-bold text-[15px] mb-3">{coupon.title}</h4>
 
                           {coupon.isUsed ? (
-                            <span className="block text-center py-2.5 bg-surface text-mute font-bold text-[13px] rounded-2xl">使用済み</span>
+                            <button onClick={() => setActiveCouponForUse(coupon)} className="w-full text-left bg-surface rounded-2xl px-3.5 py-2.5 text-[12px] text-sub space-y-0.5 press">
+                              <span className="flex items-center gap-1 font-black text-ink text-[13px]"><Icon n="check_circle" fill size={16} className="text-brand" />使用済み</span>
+                              {coupon.usedAt && <span className="block tabular-nums">{fmtDateTime(coupon.usedAt)}・{coupon.store}・{coupon.receipt}</span>}
+                            </button>
                           ) : (
                             <button
                               onClick={() => setActiveCouponForUse(coupon)}
                               className={cx(BTN_PRIMARY, "w-full flex items-center justify-center gap-1.5")}
                             >
-                              <Icon n="qr_code_2" size={20} />
-                              <span>レジで提示して使う</span>
+                              <Icon n="qr_code_scanner" size={20} />
+                              <span>お店で使う</span>
                             </button>
                           )}
                         </div>
@@ -3333,45 +3610,14 @@ ${logsText}
             </Sheet>
           )}
 
-          {/* 🏷️ カフェレジ提示用バーコードモーダル */}
+          {/* 🏪 お店で使う（非接触：お店のQRを読む → スライドで確定 → 完了画面を見せる） */}
           {activeCouponForUse && (
-            <Dialog onClose={() => setActiveCouponForUse(null)} className="max-w-xs">
-              <div className="p-5 space-y-4 text-center">
-                <div className="flex justify-between items-center">
-                  <span className="text-[12px] font-black bg-brand text-on-brand px-3 py-1 rounded-full">学内カフェ提示用</span>
-                  <button onClick={() => setActiveCouponForUse(null)} aria-label="閉じる" className="w-9 h-9 rounded-full bg-sunk text-sub flex items-center justify-center press">
-                    <Icon n="close" size={20} />
-                  </button>
-                </div>
-
-                <div className="space-y-1">
-                  <h3 className="font-head font-black text-[17px]">{activeCouponForUse.title}</h3>
-                  <p className="text-[12px] text-sub">レジのスタッフにこちらの画面をお見せください</p>
-                </div>
-
-                <div className="bg-white p-4 rounded-3xl shadow-soft space-y-2" style={{ color: "#111" }}>
-                  <div className="h-14 rounded-md p-2 flex items-center justify-between gap-1 overflow-hidden" style={{ background: "#111" }}>
-                    {Array.from({ length: 28 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className={`h-full bg-white ${i % 3 === 0 ? 'w-1.5' : i % 2 === 0 ? 'w-0.5' : 'w-1'}`}
-                      ></div>
-                    ))}
-                  </div>
-                  <span className="font-mono font-black text-[13px] tracking-widest block">{activeCouponForUse.code}</span>
-                </div>
-
-                <div className="space-y-2">
-                  <button
-                    onClick={() => handleUseCoupon(activeCouponForUse.id)}
-                    className={cx(BTN_PRIMARY, "w-full")}
-                  >
-                    スタッフが確認して使用済みにする
-                  </button>
-                  <p className="text-[12px] text-mute">※ご自分で誤って押さないようご注意ください</p>
-                </div>
-              </div>
-            </Dialog>
+            <StoreRedeemScreen
+              key={activeCouponForUse.id}
+              coupon={activeCouponForUse}
+              onClose={() => setActiveCouponForUse(null)}
+              onRedeem={handleUseCoupon}
+            />
           )}
 
         </div>
