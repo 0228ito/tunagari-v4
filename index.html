@@ -9,8 +9,8 @@
 
   <!-- 📱 PWA用設定タグ -->
   <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#f5faf8" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0e1614" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f6f7f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#121313" media="(prefers-color-scheme: dark)">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="リアルポータル">
@@ -66,6 +66,8 @@
   <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <!-- QRコード読み取り（店頭のお店QRを読むため） -->
+  <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 
   <style>
     /* ============================================================
@@ -74,65 +76,73 @@
        ============================================================ */
     :root {
       color-scheme: light;
-      --bg: 245 250 248;
+      /* 無彩色（ロゴの文字グレー #6B6B6B に合わせた、色味のないグレー） */
+      --bg: 246 247 247;
       --surface: 255 255 255;
-      --sunk: 235 243 240;
-      --line: 220 232 228;
-      --ink: 31 42 39;
-      --sub: 84 101 95;
-      --mute: 92 107 101;
+      --sunk: 241 242 242;
+      --line: 228 230 230;
+      --ink: 34 37 37;
+      --sub: 96 100 100;
+      --mute: 112 116 116;
+      /* プライマリー #35B597 */
       --brand: 53 181 151;
-      --brand-deep: 25 116 96;
-      --brand-tint: 230 246 241;
-      --on-brand: 10 49 40;
-      --ask: 255 190 72;
-      --ask-tint: 255 244 219;
-      --ask-ink: 122 72 0;
-      --love: 255 94 130;
-      --love-tint: 255 232 238;
-      --love-ink: 197 34 77;
+      --brand-deep: 28 128 104;   /* 白背景の上の文字・アイコン用（読みやすさのため少し濃く） */
+      --brand-tint: 234 247 243;
+      --on-brand: 255 255 255;
+      /* 「質問」などの強調は色を増やさず、濃いグレーで表現 */
+      --ask: 52 56 56;
+      --ask-tint: 241 242 242;
+      --ask-ink: 34 37 37;
+      /* ハート（助かった！／気になる）だけに使う差し色 */
+      --love: 240 104 96;
+      --love-tint: 253 238 236;
+      --love-ink: 196 64 56;
       --danger: 214 69 80;
       --danger-tint: 253 235 237;
       --danger-ink: 176 38 52;
-      --sky: 90 160 240;
-      --sky-tint: 232 242 255;
-      --sky-ink: 30 90 170;
-      --shadow-soft: 0 1px 2px rgb(20 60 50 / .06), 0 12px 28px -16px rgb(25 116 96 / .32);
-      --shadow-lift: 0 2px 4px rgb(20 60 50 / .08), 0 18px 36px -16px rgb(25 116 96 / .42);
-      --blob-a: 53 181 151 / .22;
-      --blob-b: 255 190 72 / .20;
+      /* 旧ブルー（AI・案内）はグレー面＋ブランド文字に統一 */
+      --sky: 53 181 151;
+      --sky-tint: 241 242 242;
+      --sky-ink: 28 128 104;
+      --shadow-soft: 0 1px 2px rgb(0 0 0 / .04), 0 6px 16px -10px rgb(0 0 0 / .14);
+      --shadow-lift: 0 2px 4px rgb(0 0 0 / .05), 0 16px 32px -16px rgb(0 0 0 / .22);
+      --blob-a: 0 0 0 / 0;
+      --blob-b: 0 0 0 / 0;
     }
     @media (prefers-color-scheme: dark) {
       :root:not([data-theme="light"]) {
         color-scheme: dark;
-        --bg: 14 22 20; --surface: 22 33 30; --sunk: 31 45 41; --line: 43 60 55;
-        --ink: 233 242 239; --sub: 168 187 180; --mute: 132 152 145;
-        --brand: 74 204 171; --brand-deep: 112 224 196; --brand-tint: 24 58 50; --on-brand: 6 38 31;
-        --ask: 255 200 90; --ask-tint: 58 45 18; --ask-ink: 255 214 130;
-        --love: 255 110 142; --love-tint: 62 28 38; --love-ink: 255 156 178;
+        --bg: 18 19 19; --surface: 28 30 30; --sunk: 38 41 41; --line: 52 56 56;
+        --ink: 236 238 238; --sub: 170 175 175; --mute: 140 145 145;
+        --brand: 53 181 151; --brand-deep: 98 208 180; --brand-tint: 26 52 46; --on-brand: 255 255 255;
+        --ask: 225 228 228; --ask-tint: 38 41 41; --ask-ink: 236 238 238;
+        --love: 255 122 112; --love-tint: 62 32 30; --love-ink: 255 160 150;
         --danger: 255 120 130; --danger-tint: 62 28 32; --danger-ink: 255 168 174;
-        --sky: 120 180 250; --sky-tint: 26 44 70; --sky-ink: 160 205 255;
-        --shadow-soft: 0 1px 0 rgb(255 255 255 / .04) inset, 0 14px 28px -16px rgb(0 0 0 / .7);
-        --shadow-lift: 0 1px 0 rgb(255 255 255 / .05) inset, 0 20px 36px -16px rgb(0 0 0 / .8);
-        --blob-a: 74 204 171 / .14;
-        --blob-b: 255 200 90 / .08;
+        --sky: 53 181 151; --sky-tint: 38 41 41; --sky-ink: 98 208 180;
+        --shadow-soft: 0 1px 0 rgb(255 255 255 / .03) inset, 0 10px 24px -14px rgb(0 0 0 / .7);
+        --shadow-lift: 0 1px 0 rgb(255 255 255 / .04) inset, 0 18px 34px -16px rgb(0 0 0 / .8);
+        --blob-a: 0 0 0 / 0;
+        --blob-b: 0 0 0 / 0;
       }
     }
     :root[data-theme="dark"] {
       color-scheme: dark;
-      --bg: 14 22 20; --surface: 22 33 30; --sunk: 31 45 41; --line: 43 60 55;
-      --ink: 233 242 239; --sub: 168 187 180; --mute: 132 152 145;
-      --brand: 74 204 171; --brand-deep: 112 224 196; --brand-tint: 24 58 50; --on-brand: 6 38 31;
-      --ask: 255 200 90; --ask-tint: 58 45 18; --ask-ink: 255 214 130;
-      --love: 255 110 142; --love-tint: 62 28 38; --love-ink: 255 156 178;
+      --bg: 18 19 19; --surface: 28 30 30; --sunk: 38 41 41; --line: 52 56 56;
+      --ink: 236 238 238; --sub: 170 175 175; --mute: 140 145 145;
+      --brand: 53 181 151; --brand-deep: 98 208 180; --brand-tint: 26 52 46; --on-brand: 255 255 255;
+      --ask: 225 228 228; --ask-tint: 38 41 41; --ask-ink: 236 238 238;
+      --love: 255 122 112; --love-tint: 62 32 30; --love-ink: 255 160 150;
       --danger: 255 120 130; --danger-tint: 62 28 32; --danger-ink: 255 168 174;
-      --sky: 120 180 250; --sky-tint: 26 44 70; --sky-ink: 160 205 255;
-      --shadow-soft: 0 1px 0 rgb(255 255 255 / .04) inset, 0 14px 28px -16px rgb(0 0 0 / .7);
-      --shadow-lift: 0 1px 0 rgb(255 255 255 / .05) inset, 0 20px 36px -16px rgb(0 0 0 / .8);
-      --blob-a: 74 204 171 / .14;
-      --blob-b: 255 200 90 / .08;
+      --sky: 53 181 151; --sky-tint: 38 41 41; --sky-ink: 98 208 180;
+      --shadow-soft: 0 1px 0 rgb(255 255 255 / .03) inset, 0 10px 24px -14px rgb(0 0 0 / .7);
+      --shadow-lift: 0 1px 0 rgb(255 255 255 / .04) inset, 0 18px 34px -16px rgb(0 0 0 / .8);
+      --blob-a: 0 0 0 / 0;
+      --blob-b: 0 0 0 / 0;
     }
 
+    /* ダークでは「濃いグレーのバッジ」が明るいグレーになるので、上の文字を反転 */
+    :root[data-theme="dark"] .bg-ask.text-on-brand { color: rgb(var(--bg)); }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .bg-ask.text-on-brand { color: rgb(var(--bg)); } }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html { background: rgb(var(--bg)); }
     body {
@@ -199,6 +209,14 @@
     @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .animate-fade-up { animation: fadeUp .4s cubic-bezier(.22,1,.36,1) both; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    /* 完了画面：常に動き続けるバー（静止画＝スクリーンショットではないことの確認用） */
+    @keyframes liveSweep { 0% { transform: translateX(-100%); } 100% { transform: translateX(250%); } }
+    .live-sweep { animation: liveSweep 1.6s linear infinite; }
+    @keyframes stampIn { 0% { transform: scale(1.8) rotate(-12deg); opacity: 0; } 60% { transform: scale(.92) rotate(-12deg); opacity: 1; } 100% { transform: scale(1) rotate(-12deg); opacity: 1; } }
+    .animate-stamp { animation: stampIn .45s cubic-bezier(.34,1.56,.64,1) both; }
+    /* 読み取り枠のスキャンライン */
+    @keyframes scanLine { 0% { top: 8%; } 50% { top: 88%; } 100% { top: 8%; } }
+    .scan-line { animation: scanLine 2.4s ease-in-out infinite; }
     .animate-fade-in { animation: fadeIn .25s ease-out both; }
     @keyframes popIn { 0% { opacity: 0; transform: translate(-50%, -8px) scale(.94); } 100% { opacity: 1; transform: translate(-50%, 0) scale(1); } }
     .animate-pop { animation: popIn .28s cubic-bezier(.34,1.56,.64,1) both; }
@@ -214,6 +232,7 @@
 
   <script type="text/babel">
     const { useState, useEffect, useMemo, useRef } = React;
+    try { if ("scrollRestoration" in history) history.scrollRestoration = "manual"; } catch (e) {}
 
     // ============================================================
     // 🏫 大学設定（ここ1か所を変えると、全画面の大学名・学部名・サンプルデータが切り替わります）
@@ -255,15 +274,7 @@
     // 💾 保存（この端末のブラウザに保存。リロードしても質問・回答・ポイントが残ります）
     //   ※ 保存先は端末ごとです。他の学生の端末とは共有されません（共有にはサーバーが必要）
     // ============================================================
-    const STORAGE_PREFIX = `tunagari-proto-261013ai:${UNIV_ID}:`;
-
-    // 🎁 ポイントがもらえるのは、この3つだけ（「気になる」ではもらえません）
-    //   ・「助かった！」は押した人に+1。取り消すと-1（押し直しで増やせない）。自分の投稿・回答には付かない
-    const POINT_RULES = {
-      share: 10,    // 情報を投稿した（質問の投稿は対象外）
-      thanks: 1,    // 「助かった！」を押した（投稿・回答どちらでも）
-      answer: 3     // 質問に回答した
-    };
+    const STORAGE_PREFIX = `tunagari-proto-261015ai-list:${UNIV_ID}:`;
 
     function usePersistentState(key, initialFactory) {
       const [value, setValue] = useState(() => {
@@ -282,7 +293,7 @@
     function clearAllPersisted() {
       try {
         Object.keys(window.localStorage)
-          .filter(k => k.startsWith("tunagari-proto-261013ai:"))
+          .filter(k => k.startsWith("tunagari-proto-261015ai-list:"))
           .forEach(k => window.localStorage.removeItem(k));
       } catch (e) {}
     }
@@ -346,32 +357,32 @@
 
     // AIサポーターの文面（機械的にならないよう、やさしい話し言葉で。カテゴリごとに、気持ちに寄り添う一言＋参考になりそうなこと）
     const AI_INTROS = {
-      "授業・過去問": "授業のことって、身近に聞ける人がいないと不安になりますよね。",
-      "休講・掲示板": "予定が変わるかもしれないとき、気になってしまいますよね。",
-      "グルメ・学食": "毎日のごはん選び、地味に大事ですよね。",
-      "作業スペース": "集中できる場所が見つかると、毎日がぐっとラクになりますよね。",
-      "暮らし・家探し": "新しい暮らしを考えるのは、わくわくする反面、不安も大きいですよね。",
-      "体調・健康": "体調のことは、ひとりで抱えると心細くなりますよね。",
-      "新歓・サークル": "どこに入るか迷う時期は、ほんとうに悩みますよね。",
-      "バイト・研究室": "働き方や進路のことは、迷って当たり前だと思います。"
+      "授業・過去問": "先輩の回答が届くまで、まずはここから。",
+      "休講・掲示板": "先輩の回答が届くまで、まずはここから。",
+      "グルメ・学食": "先輩の回答が届くまで、まずはここから。",
+      "作業スペース": "先輩の回答が届くまで、まずはここから。",
+      "暮らし・家探し": "先輩の回答が届くまで、まずはここから。",
+      "体調・健康": "つらいときは、ひとりで抱えないで。",
+      "新歓・サークル": "先輩の回答が届くまで、まずはここから。",
+      "バイト・研究室": "先輩の回答が届くまで、まずはここから。"
     };
     const AI_TIPS = {
-      "授業・過去問": ["まずはシラバスを開いて、成績の付け方（試験・レポート・出席）を見てみると、全体像がつかみやすいですよ。", "履修や試験のルールは、学務の案内にいちばん正確なことが載っています。迷ったら窓口で聞いても大丈夫です。", "同じ授業を取っている友達や先輩に、気軽に一言聞いてみるのもおすすめです。"],
-      "休講・掲示板": ["公式のポータルや掲示板に、最新の情報が出ていないか見てみてくださいね。", "授業の連絡は、メールや学習支援システムに届いていることもあります。", "もし掲示を見つけたら、写真つきで投稿してもらえると、同じように探している人がきっと助かります。"],
-      "グルメ・学食": ["営業時間や混みやすい時間は、公式の案内でチェックしてみてください。", "ピークを少しずらすだけで、ゆっくり座れることが多いですよ。", "気になるメニューは、写真を添えて聞いてみると、答えてもらいやすいです。"],
-      "作業スペース": ["図書館や自習スペースの利用時間・ルールを、先にのぞいておくと安心です。", "「コンセントがほしい」「静かなところがいい」など、条件を書き足してくれると、みんなが答えやすくなります。", "朝や夕方など、空いていそうな時間帯も試してみてくださいね。"],
-      "暮らし・家探し": ["通学時間と手段（徒歩・自転車・公共交通）を並べて比べてみると、暮らしのイメージがつかみやすいです。", "時間があれば、昼と夜の両方で現地を歩いてみてください。雰囲気は意外と違います。", "家賃のほかに、初期費用や光熱費も見ておくと安心です。生協や学生支援の窓口で相談できる場合もあります。"],
-      "体調・健康": ["つらいときは、無理せず休んでください。大学の保健管理施設や医療機関に相談してみましょう。", "症状が重かったり、長引いたりするときは、早めに受診してくださいね。", "私はAIなので、診断はできません。体のことは、専門の方を頼ってください。"],
-      "新歓・サークル": ["体験や見学に行って、活動の頻度・費用・雰囲気を自分の目で確かめてみてください。", "気になる団体の説明会や公式の発信は、いくつか見比べると安心です。", "入る前に、1年間でかかる費用と活動日を、先輩にこっそり聞いておくのもおすすめです。"],
-      "バイト・研究室": ["求人票や募集要項で、時給・シフト・勤務地をじっくり見比べてみてください。", "研究室は、見学や先輩への相談で、雰囲気や指導の様子がつかめます。", "学内のキャリア・就職の窓口で相談できる場合もあるので、頼ってみてくださいね。"]
+      "授業・過去問": ["シラバスで成績の付け方を確認", "試験ルールは学務の案内が確実", "同じ授業の先輩に一言聞いてみる"],
+      "休講・掲示板": ["公式ポータル・掲示板を確認", "メールや学習支援システムもチェック", "掲示を見つけたら写真で投稿を"],
+      "グルメ・学食": ["営業時間は公式の案内で確認", "ピークを少しずらすと座りやすい", "写真を添えると答えてもらいやすい"],
+      "作業スペース": ["図書館の利用時間・ルールを確認", "「コンセント」など条件を書き足す", "朝・夕方の空いている時間を試す"],
+      "暮らし・家探し": ["通学時間と手段を比べる", "昼と夜の両方で現地を歩く", "初期費用・光熱費も確認"],
+      "体調・健康": ["無理せず休む・保健センターに相談", "重い・長引くときは早めに受診", "AIは診断できません"],
+      "新歓・サークル": ["見学で頻度・費用・雰囲気を確認", "いくつか見比べる", "年間の費用を先輩に聞く"],
+      "バイト・研究室": ["時給・シフト・勤務地を比べる", "研究室は見学と先輩への相談", "学内のキャリア窓口も頼れる"]
     };
 
     function makeAiAnswer(category, title) {
       return {
         label: "AIサポーターより",
-        intro: `質問してくれてありがとうございます。${AI_INTROS[category] || AI_INTROS["授業・過去問"]}まだ回答が届いていないので、先に私から、参考になりそうなことをお伝えしますね。`,
+        intro: AI_INTROS[category] || AI_INTROS["授業・過去問"],
         tips: AI_TIPS[category] || AI_TIPS["授業・過去問"],
-        outro: "回答が届くまで、少しだけ待っていてくださいね。同じことで迷った先輩が、きっと答えてくれます。状況を書き足してもらえると、みんなが答えやすくなります。",
+        outro: "",
         createdAt: Date.now()
       };
     }
@@ -661,9 +672,356 @@
       ];
     }
 
+    // ============================================================
+    // 🎫 クーポンの店頭利用（非接触：お客様が「お店のQR」を読んで、自分で確定）
+    //   1. レジに置いた「お店のQR（週替わり）」をお客様のカメラで読む → その場にいる証明
+    //   2. お客様がスライドして確定 → 偶然では起きない、本人の意思による操作
+    //   3. 完了画面（動く時計・受付番号）を店員さんが目で見て確認 → スマホに触れない
+    //   ・確定時に「読み取り日時・使用日時（秒まで）・店舗・受付番号」を記録
+    //   ・お店のQRは週ごとに変わる（今週・先週分のみ有効）。印刷用ページ：store_qr.html
+    //   ※ 本番ではQRの中身にサーバー署名を付け、照合と記録はサーバーで行う想定
+    // ============================================================
+    // 🏬 ポイントを使える協力店（札幌駅周辺）
+    //   ※ 店名・特典はサンプル（営業前の仮データ）。協力が決まったお店に差し替えてください
+    //   ・hours：[開店, 閉店]（分）を複数書ける（昼休みあり等）。closed：定休日の曜日（0=日〜6=土）
+    //   ・photo が読み込めないときは、ジャンルのアイコンを表示します
+    const PARTNER_STORES = [
+      {
+        id: "hoshino", name: "喫茶 ほしのみち", genre: "カフェ", icon: "local_cafe",
+        photo: "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=600&auto=format&fit=crop&q=60",
+        access: "北口 徒歩3分", address: "札幌市北区北7条西4丁目", hoursText: "8:00–20:00", closedText: "水曜",
+        hours: [[480, 1200]], closed: [3], note: "電源席あり・1人でも入りやすい",
+        ticket: { title: "ドリンク1杯 無料", detail: "ブレンド・カフェラテ・季節のドリンクから1杯", cost: 100 }
+      },
+      {
+        id: "kogane", name: "スープカレー こがね", genre: "スープカレー", icon: "ramen_dining",
+        photo: "https://images.unsplash.com/photo-1455619452474-d2be8b1e70cd?w=600&auto=format&fit=crop&q=60",
+        access: "南口 徒歩4分", address: "札幌市中央区北4条西3丁目", hoursText: "11:00–21:30", closedText: "なし",
+        hours: [[660, 1290]], closed: [], note: "辛さ0〜10番から選べる",
+        ticket: { title: "トッピング1品 無料", detail: "300円までのトッピングから1品", cost: 80 }
+      },
+      {
+        id: "shirokuma", name: "麺屋 しろくま", genre: "ラーメン", icon: "ramen_dining",
+        photo: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?w=600&auto=format&fit=crop&q=60",
+        access: "北口 徒歩5分", address: "札幌市北区北8条西3丁目", hoursText: "11:00–15:00 / 17:30–22:00", closedText: "月曜",
+        hours: [[660, 900], [1050, 1320]], closed: [1], note: "味噌ラーメンが看板",
+        ticket: { title: "大盛り 無料", detail: "全ラーメン対象", cost: 60 }
+      },
+      {
+        id: "komugi", name: "ベーカリー こむぎ堂", genre: "パン", icon: "bakery_dining",
+        photo: "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=600&auto=format&fit=crop&q=60",
+        access: "南口 徒歩2分", address: "札幌市中央区北5条西2丁目", hoursText: "7:30–19:00", closedText: "不定休",
+        hours: [[450, 1140]], closed: [], note: "朝7時半から。売り切れ次第終了",
+        ticket: { title: "200円引き", detail: "800円以上のお会計で", cost: 120 }
+      },
+      {
+        id: "notre", name: "自習カフェ ノートル", genre: "自習スペース", icon: "menu_book",
+        photo: "https://images.unsplash.com/photo-1521017432531-fbd92d768814?w=600&auto=format&fit=crop&q=60",
+        access: "西改札 徒歩6分", address: "札幌市北区北6条西6丁目", hoursText: "9:00–23:00", closedText: "なし",
+        hours: [[540, 1380]], closed: [], note: "Wi-Fi・電源・ドリンク飲み放題",
+        ticket: { title: "2時間 無料", detail: "通常2時間800円のプラン", cost: 150 }
+      }
+    ];
+    const STORES = Object.fromEntries(PARTNER_STORES.map(s => [s.id, s.name]));
+    const storeById = (id) => PARTNER_STORES.find(s => s.id === id);
+    // 今、営業中か（定休日・昼休みも考慮）
+    function isOpenNow(store, ms = Date.now()) {
+      const d = new Date(ms);
+      if (store.closed.includes(d.getDay())) return false;
+      const m = d.getHours() * 60 + d.getMinutes();
+      return store.hours.some(([a, b]) => m >= a && m < b);
+    }
+    const mapUrl = (store) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.address + " " + store.name)}`;
+    const TICKET_VALID_DAYS = 30;
+
+    // 🎁 ポイントがもらえるのは、この3つだけ（「気になる」ではもらえません）
+    //   ・「助かった！」は押した人に+1。取り消すと-1（押し直しで増やせない）。自分の投稿・回答には付かない
+    const POINT_RULES = {
+      share: 10,    // 情報を投稿した（質問の投稿は対象外）
+      thanks: 1,    // 「助かった！」を押した（投稿・回答どちらでも）
+      answer: 3     // 質問に回答した
+    };
+
+    // お店の写真（読み込めないときはアイコン）
+    function StoreThumb({ store, className, iconSize = 28 }) {
+      const [bad, setBad] = useState(false);
+      return (
+        <div className={cx("relative overflow-hidden bg-brand-tint flex items-center justify-center flex-shrink-0", className)}>
+          {store.photo && !bad
+            ? <img src={store.photo} alt={`${store.name}の写真`} loading="lazy" onError={() => setBad(true)} className="absolute inset-0 w-full h-full object-cover" />
+            : <Icon n={store.icon} fill size={iconSize} className="text-brand-deep" />}
+        </div>
+      );
+    }
+    function OpenBadge({ store }) {
+      const open = isOpenNow(store);
+      return (
+        <span className={cx("inline-flex items-center gap-1 text-[11px] font-bold", open ? "text-brand-deep" : "text-mute")}>
+          <span className={cx("w-1.5 h-1.5 rounded-full", open ? "bg-brand" : "bg-mute/60")}></span>{open ? "営業中" : "営業時間外"}
+        </span>
+      );
+    }
+    const QR_PREFIX = "TUNAGARI";
+
+    const pad2 = (n) => String(n).padStart(2, "0");
+    const fmtDateTime = (ms) => { const d = new Date(ms); return `${d.getFullYear()}/${pad2(d.getMonth() + 1)}/${pad2(d.getDate())} ${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; };
+    const fmtClock = (ms) => { const d = new Date(ms); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}:${pad2(d.getSeconds())}`; };
+    const fmtDay = (ms) => { const d = new Date(ms); return `${d.getMonth() + 1}月${d.getDate()}日（${"日月火水木金土"[d.getDay()]}）`; };
+    // ISO週（月曜はじまり）。例：2026-W42
+    function isoWeekKey(ms) {
+      const d = new Date(ms);
+      const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+      const day = t.getUTCDay() || 7;
+      t.setUTCDate(t.getUTCDate() + 4 - day);
+      const y = t.getUTCFullYear();
+      const w = Math.ceil(((t - Date.UTC(y, 0, 1)) / 86400000 + 1) / 7);
+      return `${y}-W${pad2(w)}`;
+    }
+    const storeQrText = (storeId, ms) => `${QR_PREFIX}|${UNIV_ID}|${storeId}|${isoWeekKey(ms)}`;
+    // 読み取った文字を確認 → { ok, storeId, storeName } か { ok:false, reason }
+    function checkStoreQr(text) {
+      const parts = String(text || "").trim().split("|");
+      if (parts.length !== 4 || parts[0] !== QR_PREFIX) return { ok: false, reason: "お店のQRではありません" };
+      const [, univ, storeId, week] = parts;
+      if (univ !== UNIV_ID || !STORES[storeId]) return { ok: false, reason: "このクーポンが使えないお店です" };
+      const now = Date.now();
+      const valid = [isoWeekKey(now), isoWeekKey(now - 7 * 86400000)];   // 今週＋先週（貼り替え忘れの猶予）
+      if (!valid.includes(week)) return { ok: false, reason: "このQRは期限切れです。店員さんにお知らせください" };
+      return { ok: true, storeId, storeName: STORES[storeId] };
+    }
+
+    function useNow(interval = 1000) {
+      const [t, setT] = useState(Date.now());
+      useEffect(() => { const i = setInterval(() => setT(Date.now()), interval); return () => clearInterval(i); }, [interval]);
+      return t;
+    }
+
+    // カメラでQRを読む（対応端末はBarcodeDetector、それ以外はjsQR）
+    function QrScanner({ onResult }) {
+      const videoRef = useRef(null);
+      const canvasRef = useRef(null);
+      const [error, setError] = useState("");
+      const doneRef = useRef(false);
+      useEffect(() => {
+        let stream = null, raf = 0, detector = null, stopped = false;
+        const stop = () => { stopped = true; cancelAnimationFrame(raf); if (stream) stream.getTracks().forEach(t => t.stop()); };
+        const emit = (txt) => { if (doneRef.current || !txt) return; doneRef.current = true; stop(); onResult(txt); };
+        (async () => {
+          try {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) throw new Error("no-camera");
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+            if (stopped) { stream.getTracks().forEach(t => t.stop()); return; }
+            const v = videoRef.current;
+            v.srcObject = stream; v.setAttribute("playsinline", ""); await v.play();
+            if ("BarcodeDetector" in window) { try { detector = new window.BarcodeDetector({ formats: ["qr_code"] }); } catch (e) { detector = null; } }
+            const tick = async () => {
+              if (stopped) return;
+              if (v.readyState >= 2) {
+                try {
+                  if (detector) {
+                    const r = await detector.detect(v);
+                    if (r && r[0]) return emit(r[0].rawValue);
+                  } else if (window.jsQR) {
+                    const c = canvasRef.current, w = 480, hh = Math.round(480 * (v.videoHeight / Math.max(1, v.videoWidth)));
+                    c.width = w; c.height = hh;
+                    const ctx = c.getContext("2d", { willReadFrequently: true });
+                    ctx.drawImage(v, 0, 0, w, hh);
+                    const img = ctx.getImageData(0, 0, w, hh);
+                    const code = window.jsQR(img.data, w, hh, { inversionAttempts: "dontInvert" });
+                    if (code && code.data) return emit(code.data);
+                  }
+                } catch (e) { /* 次のフレームで再試行 */ }
+              }
+              raf = requestAnimationFrame(tick);
+            };
+            raf = requestAnimationFrame(tick);
+          } catch (e) {
+            setError("カメラを使えませんでした。ブラウザの設定でカメラを許可してください");
+          }
+        })();
+        return stop;
+      }, []);
+      return (
+        <div className="relative w-full aspect-square rounded-3xl overflow-hidden bg-black">
+          <video ref={videoRef} className="absolute inset-0 w-full h-full object-cover" muted playsInline></video>
+          <canvas ref={canvasRef} className="hidden"></canvas>
+          {/* 読み取り枠 */}
+          <div className="absolute inset-[12%] rounded-3xl border-[3px] border-white/90 pointer-events-none">
+            <div className="absolute left-3 right-3 h-0.5 bg-brand shadow-[0_0_12px_rgb(53_181_151)] scan-line"></div>
+          </div>
+          {error && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-6 text-center bg-black/80">
+              <Icon n="no_photography" size={36} className="text-white/70" />
+              <p className="text-[13px] text-white/85 leading-relaxed">{error}</p>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // スライドして確定（端まで動かさないと確定しない。途中で離すと戻る）
+    function SlideToConfirm({ label, onDone }) {
+      const track = useRef(null);
+      const [x, setX] = useState(0);
+      const [drag, setDrag] = useState(false);
+      const startX = useRef(0);
+      const KNOB = 56;
+      const maxX = () => (track.current ? track.current.clientWidth - KNOB - 8 : 240);
+      const down = (e) => {
+        startX.current = e.clientX - x; setDrag(true);
+        if (e.currentTarget.setPointerCapture) { try { e.currentTarget.setPointerCapture(e.pointerId); } catch (err) {} }
+      };
+      const move = (e) => { if (drag) setX(Math.min(maxX(), Math.max(0, e.clientX - startX.current))); };
+      const up = () => {
+        if (!drag) return;
+        setDrag(false);
+        if (x >= maxX() * 0.94) { setX(maxX()); setTimeout(onDone, 120); } else setX(0);
+      };
+      const pct = Math.min(1, x / Math.max(1, maxX()));
+      return (
+        <div ref={track} className="relative h-16 rounded-full bg-white/10 border border-white/15 overflow-hidden select-none touch-none">
+          <div className="absolute inset-y-0 left-0 bg-brand/35 rounded-full" style={{ width: x + KNOB + 8 }}></div>
+          <span className="absolute inset-0 flex items-center justify-center pl-14 text-[15px] font-black text-white pointer-events-none" style={{ opacity: Math.max(0, 1 - pct * 1.6) }}>
+            {label}
+          </span>
+          <button
+            type="button"
+            onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up}
+            aria-label={label}
+            className="absolute top-1 left-1 w-14 h-14 rounded-full bg-brand text-white flex items-center justify-center shadow-lift cursor-grab touch-none"
+            style={{ transform: `translateX(${x}px)`, transition: drag ? "none" : "transform .25s cubic-bezier(.22,1,.36,1)" }}
+          >
+            <Icon n="keyboard_double_arrow_right" size={30} />
+          </button>
+        </div>
+      );
+    }
+
+    // お店で使う（全画面）：QR読み取り → スライドで確定 → 完了画面を見せる
+    function StoreRedeemScreen({ coupon, onClose, onRedeem }) {
+      const now = useNow(1000);
+      const [step, setStep] = useState(coupon.isUsed ? "done" : "scan");   // scan → confirm → done
+      const bodyRef = useRef(null);
+      useEffect(() => { if (bodyRef.current) bodyRef.current.scrollTop = 0; }, [step]);
+      const [scan, setScan] = useState(null);       // { storeId, storeName, at }
+      const [scanError, setScanError] = useState("");
+      const handleScan = (text) => {
+        const r = checkStoreQr(text);
+        if (!r.ok) { setScanError(r.reason); return false; }
+        if (coupon.storeId && r.storeId !== coupon.storeId) {
+          setScanError(`このチケットは「${STORES[coupon.storeId] || "別のお店"}」で使えます`);
+          return false;
+        }
+        setScanError("");
+        setScan({ storeId: r.storeId, storeName: r.storeName, at: Date.now() });
+        setStep("confirm");
+        return true;
+      };
+      const [scanKey, setScanKey] = useState(0);   // 読み取りやり直し用
+
+      return (
+        <div className="fixed inset-0 z-[80] bg-[#151717] text-white flex flex-col animate-fade-in" style={{ paddingTop: "max(1rem, env(safe-area-inset-top))", paddingBottom: "max(1rem, env(safe-area-inset-bottom))" }}>
+          <div ref={bodyRef} className="w-full max-w-md mx-auto flex-1 flex flex-col px-5 gap-4 overflow-y-auto">
+            <div className="flex items-center justify-between">
+              <span className="inline-flex items-center gap-1.5 bg-white text-[#151717] text-[12px] font-black px-3 py-1.5 rounded-full">
+                <Icon n="storefront" fill size={16} />お店で使う
+              </span>
+              <button onClick={onClose} aria-label="閉じる" className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center press">
+                <Icon n="close" size={22} />
+              </button>
+            </div>
+
+            {/* 手順の現在地 */}
+            <div className="flex items-center gap-1.5 text-[12px] font-bold">
+              {[["scan", "QRを読む"], ["confirm", "スライド"], ["done", "見せる"]].map(([k, l], i) => {
+                const idx = ["scan", "confirm", "done"].indexOf(step);
+                const on = i <= idx;
+                return (
+                  <React.Fragment key={k}>
+                    {i > 0 && <span className={cx("flex-1 h-px", on ? "bg-brand" : "bg-white/15")}></span>}
+                    <span className={cx("flex items-center gap-1", on ? "text-white" : "text-white/40")}>
+                      <span className={cx("w-5 h-5 rounded-full text-[11px] flex items-center justify-center", on ? "bg-brand text-white" : "bg-white/10")}>{i + 1}</span>{l}
+                    </span>
+                  </React.Fragment>
+                );
+              })}
+            </div>
+
+            {step === "scan" && (
+              <div className="space-y-3 animate-fade-in">
+                <p className="text-center font-head font-black text-[18px]">レジにあるお店のQRを読み取ってください</p>
+                <QrScanner key={scanKey} onResult={(t) => { if (!handleScan(t)) setTimeout(() => setScanKey(k => k + 1), 1800); }} />
+                {scanError && <p className="text-center text-[13px] font-bold text-[#ff8a8a]">{scanError}</p>}
+                <div className="rounded-2xl bg-white/5 px-4 py-3 text-[12px] text-white/70 flex justify-between gap-2">
+                  <span className="font-bold text-white truncate">{coupon.title}</span>
+                  {coupon.expires && <span className="flex-shrink-0">期限 {coupon.expires}</span>}
+                </div>
+                {/* デモ用：カメラが使えないPCでも流れを確認できるように */}
+                <button onClick={() => handleScan(storeQrText(coupon.storeId || PARTNER_STORES[0].id, Date.now()))} className="w-full text-[12px] text-white/45 underline py-1">
+                  デモ：読み取ったことにする（{STORES[coupon.storeId] || PARTNER_STORES[0].name}）
+                </button>
+              </div>
+            )}
+
+            {step === "confirm" && scan && (
+              <div className="flex-1 flex flex-col gap-4 animate-fade-in">
+                <div className="rounded-3xl bg-white text-[#222] p-5 text-center space-y-1">
+                  <p className="text-[12px] font-bold text-[#1c8068] flex items-center justify-center gap-1"><Icon n="check_circle" fill size={16} />{scan.storeName} を確認しました</p>
+                  <p className="font-head font-black text-[20px] leading-snug pt-1">{coupon.title}</p>
+                  <p className="text-[12px] text-[#666]">{coupon.code}</p>
+                </div>
+                <div className="flex-1"></div>
+                <div className="space-y-3">
+                  <p className="text-center text-[13px] text-white/85 font-bold">レジでお会計のときにスライド</p>
+                  <SlideToConfirm label="スライドして使う" onDone={() => { onRedeem(coupon.id, scan); setStep("done"); }} />
+                  <p className="text-center text-[11px] text-white/50">スライドすると使用済みになり、取り消せません</p>
+                </div>
+              </div>
+            )}
+
+            {step === "done" && coupon.usedAt && (
+              <div className="flex-1 flex flex-col gap-4 animate-fade-in">
+                <p className="text-center font-head font-black text-[18px]">この画面を店員さんに見せてください</p>
+                {/* 生きている画面の証明：秒まで動く時計＋動き続けるバー */}
+                <div className="rounded-3xl bg-white/5 border border-white/10 p-4 text-center space-y-1.5">
+                  <p className="text-[12px] text-white/60">{fmtDay(now)}</p>
+                  <p className="font-head font-black text-[40px] leading-none tracking-wider tabular-nums">{fmtClock(now)}</p>
+                  <div className="h-1.5 rounded-full bg-white/10 overflow-hidden mt-2">
+                    <div className="h-full w-1/3 bg-brand rounded-full live-sweep"></div>
+                  </div>
+                  <p className="text-[11px] text-white/50">時計とバーが動いていれば、本物の画面です</p>
+                </div>
+                <div className="relative rounded-3xl bg-white text-[#222] p-5 pb-8 text-center space-y-1 overflow-hidden">
+                  <p className="font-head font-black text-[20px] leading-snug">{coupon.title}</p>
+                  <p className="text-[12px] text-[#666]">{coupon.code}</p>
+                  <div className="absolute right-3 bottom-2 pointer-events-none">
+                    <span className="animate-stamp inline-block border-[3px] border-[#d64550] text-[#d64550] font-head font-black text-[18px] px-3 py-0.5 rounded-xl bg-white/90">使用済み</span>
+                  </div>
+                </div>
+                <div className="rounded-3xl bg-white/5 border border-white/10 p-4 space-y-2 text-[13px]">
+                  {[
+                    ["使用日時", fmtDateTime(coupon.usedAt)],
+                    ["店舗", coupon.store],
+                    ["受付番号", coupon.receipt]
+                  ].map(([k, val]) => (
+                    <div key={k} className="flex justify-between gap-3">
+                      <span className="text-white/55">{k}</span>
+                      <span className="font-bold tabular-nums text-right">{val}</span>
+                    </div>
+                  ))}
+                </div>
+                <div className="flex-1"></div>
+                <button onClick={onClose} className={cx(BTN_PRIMARY, "w-full")}>とじる</button>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     function makeInitialCoupons(U) {
       return [
-        { id: 901, title: `${U.dining} 100円オフクーポン`, cost: 50, date: "2026-08-15", code: "CAMPUS-CAF-8821", isUsed: false }
+        { id: 901, storeId: "hoshino", title: "喫茶 ほしのみち｜ドリンク1杯 無料", cost: 100, date: "2026-10-10", expires: "2026-11-09", code: "TNG-HOSHI-8821", isUsed: false }
       ];
     }
 
@@ -758,7 +1116,7 @@
       if (words.length === 0) return text;
       const re = new RegExp(`(${words.map(escapeRe).join("|")})`, "gi");
       return String(text).split(re).map((part, i) => i % 2 === 1
-        ? <mark key={i} className="bg-ask/40 text-ink rounded px-0.5">{part}</mark>
+        ? <mark key={i} className="bg-brand/20 text-ink rounded px-0.5">{part}</mark>
         : part);
     }
 
@@ -774,10 +1132,11 @@
     // 🧩 共通パーツ（デザインを1か所で揃える）
     // ============================================================
     const cx = (...a) => a.filter(Boolean).join(" ");
+    const LOGO_MARK = "data:image/png;base64,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";
 
     // 入力欄・ボタンの共通スタイル
     const INPUT = "w-full bg-sunk text-ink placeholder:text-mute rounded-2xl px-4 py-3 text-[14px] outline-none border border-transparent focus:border-brand focus:bg-surface transition-colors";
-    const BTN_PRIMARY = "bg-brand text-on-brand font-black rounded-2xl py-3.5 text-[14px] shadow-soft press disabled:opacity-50";
+    const BTN_PRIMARY = "bg-brand text-on-brand font-black rounded-2xl py-3.5 text-[15px] tracking-wide shadow-soft press disabled:opacity-50";
     const BTN_SOFT = "bg-sunk text-ink font-bold rounded-2xl py-3 text-[14px] press";
     const LABEL = "block text-[12px] font-bold text-sub mb-1.5";
 
@@ -788,12 +1147,7 @@
     }
 
     // 学部・学年の頭文字を丸いアイコンに（匿名は人型アイコン）
-    const AVATAR_TONES = [
-      "bg-brand-tint text-brand-deep",
-      "bg-ask-tint text-ask-ink",
-      "bg-sky-tint text-sky-ink",
-      "bg-love-tint text-love-ink"
-    ];
+    const AVATAR_TONES = ["bg-sunk text-sub"];
     function Avatar({ name, size = 40 }) {
       const label = (name || "").replace("（あなた）", "");
       const anon = !label || label.includes("匿名");
@@ -818,8 +1172,8 @@
     }
     function QuestionBadge() {
       return (
-        <span className="bg-ask-tint text-ask-ink text-[12px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-0.5">
-          <Icon n="help" fill size={13} />質問
+        <span className="border border-line text-sub text-[11px] font-bold px-2 py-[1px] rounded-full inline-flex items-center gap-0.5">
+          <Icon n="help" size={13} />質問
         </span>
       );
     }
@@ -895,54 +1249,42 @@
       return (
         <article
           onClick={onOpen}
-          className={cx("relative bg-surface rounded-3xl p-3.5 shadow-soft border cursor-pointer press animate-fade-up w-full break-words", unread > 0 ? "border-love/60 ring-2 ring-love/20" : "border-line/70")}
+          className={cx("relative bg-surface rounded-3xl p-4 shadow-soft border cursor-pointer press animate-fade-up w-full break-words", unread > 0 ? "border-brand/60 ring-2 ring-brand/15" : "border-line/70")}
           style={{ animationDelay: `${Math.min(idx, 6) * 45}ms` }}
         >
           {topPick && (
-            <div className="absolute -top-3 right-4 bg-ask text-on-brand text-[12px] font-black px-2.5 py-1 rounded-full shadow-soft flex items-center gap-1">
-              <Icon n="stars" fill size={14} />おすすめNo.1回答
+            <div className="absolute -top-3 right-4 bg-brand text-on-brand text-[12px] font-black px-2.5 py-1 rounded-full shadow-soft flex items-center gap-1">
+              <Icon n="stars" fill size={14} />おすすめ
             </div>
           )}
           {post.image && (
-            <div className="-mx-3.5 -mt-3.5 mb-3 rounded-t-3xl overflow-hidden aspect-[16/9] bg-sunk">
+            <div className="-mx-4 -mt-4 mb-3 rounded-t-3xl overflow-hidden aspect-[16/9] bg-sunk">
               <img src={post.image} alt="投稿写真" className="w-full h-full object-cover" loading="lazy" />
             </div>
           )}
-          <div className="flex items-center gap-3">
-            <Avatar name={post.author} size={36} />
-            <div className="min-w-0 flex-1">
-              <div className="text-[13px] font-bold text-ink truncate">{post.author}</div>
-              <div className="text-[12px] text-mute">{post.time}</div>
-            </div>
+          <div className="flex items-center gap-2">
+            <CategoryChip>{post.category}</CategoryChip>
+            <div className="min-w-0 flex-1 text-[12px] text-mute truncate">{post.author.replace("（あなた）", "")}・{post.time}</div>
             {unread > 0 && (
-              <span className="bg-love text-white text-[12px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-0.5">
-                <Icon n="notifications_active" fill size={12} />新着{unread > 1 ? ` ${unread}` : "回答"}
+              <span className="bg-brand text-on-brand text-[11px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-0.5">
+                新着{unread > 1 ? ` ${unread}` : ""}
               </span>
             )}
             {isQ && <QuestionBadge />}
           </div>
 
-          <div className="mt-2.5"><CategoryChip>{post.category}</CategoryChip></div>
-          <h2 className="font-head font-bold text-[16px] leading-snug text-ink mt-2 break-words"><Highlight text={post.title} tokens={tokens} /></h2>
-          <p className="text-[13px] text-sub mt-1 line-clamp-2 leading-relaxed break-words"><Highlight text={post.content} tokens={tokens} /></p>
-          {onTag && extractTags(post).length > 0 && (
-            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
-              {extractTags(post).map(t => (
-                <button key={t} onClick={(e) => { e.stopPropagation(); onTag(t); }} className="text-[12px] font-bold text-brand-deep press">#{t}</button>
-              ))}
-            </div>
-          )}
+          <h2 className="font-head font-bold text-[16px] leading-snug text-ink mt-2 break-words"><Highlight text={post.title.replace(/^【質問】\s*/, "")} tokens={tokens} /></h2>
+          {tokens && tokens.length > 0 && <p className="text-[13px] text-sub mt-1 line-clamp-1 break-words"><Highlight text={post.content} tokens={tokens} /></p>}
 
 
-          <div className="flex justify-between items-center mt-2.5 pt-2.5 border-t border-line/70">
+          <div className="flex justify-between items-center mt-3">
             <div className="flex gap-3 text-mute text-[12px] items-center">
                             <span className="flex items-center gap-1">
                 <Icon n="chat_bubble" size={16} />{post.commentsCount}
-                {isQ && post.commentsCount === 0 && <span className="text-ask-ink font-bold">{post.ai ? "AIが返信済み" : "回答募集中"}</span>}
-                {isQ && post.commentsCount > 0 && <span className="text-ask-ink font-bold">回答</span>}
+                {isQ && post.commentsCount === 0 && <span className="text-brand-deep font-bold">{post.ai ? "AIが返信" : "回答募集中"}</span>}
                 {isQ && post.commentsCount >= SUMMARY_MIN_ANSWERS && (
                   <span className="bg-brand-tint text-brand-deep text-[12px] font-black px-2 py-0.5 rounded-full inline-flex items-center gap-0.5 ml-1">
-                    <Icon n="auto_awesome" fill size={12} />まとめあり
+                    <Icon n="auto_awesome" fill size={12} />まとめ
                   </span>
                 )}
               </span>
@@ -950,12 +1292,13 @@
             <button
               onClick={onThanks}
               className={cx(
-                "flex items-center gap-1.5 px-3.5 py-1.5 rounded-full font-black text-[13px] press",
-                post.isLiked ? "bg-love text-white shadow-soft animate-bounce-click" : "bg-love-tint text-love-ink"
+                "flex items-center gap-1 px-3 py-1.5 rounded-full font-bold text-[13px] press",
+                post.isLiked ? "text-love-ink bg-love-tint animate-bounce-click" : "text-mute"
               )}
+              aria-label={isQ ? "気になる" : "助かった！"}
             >
-              <Icon n="favorite" fill={post.isLiked} size={17} />
-              <span>{isQ ? "気になる" : "助かった！"} {post.thanks}</span>
+              <Icon n="favorite" fill={post.isLiked} size={18} className={post.isLiked ? "text-love" : ""} />
+              <span>{post.thanks}</span>
             </button>
           </div>
         </article>
@@ -978,36 +1321,26 @@
       };
 
       const points = [
-        { icon: "verified_user", title: `${U.name}の学生だけが入れます`, text: "大学のメールアドレスで確認した学生だけのコミュニティです。" },
-        { icon: "visibility_off", title: "表示されるのは学部・学年だけ", text: "名前は表示されません。匿名での質問・回答もできます。" },
-        { icon: "flag", title: "困ったときは、ワンタップで通報", text: "不適切な投稿やコメントは通報できます。" }
+        { icon: "verified_user", title: `${U.short}生だけ` },
+        { icon: "visibility_off", title: "名前は出ない" },
+        { icon: "flag", title: "すぐ通報できる" }
       ];
 
       return (
         <div className="w-full max-w-md mx-auto min-h-screen bg-bg text-ink flex flex-col px-6 pt-14 pb-10 overflow-x-hidden relative bg-blobs">
           <div className="flex-1 flex flex-col justify-center space-y-7">
             <div className="space-y-4 animate-fade-up">
-              <div className="w-16 h-16 rounded-[1.4rem] bg-brand text-on-brand flex items-center justify-center shadow-lift rotate-[-6deg]">
-                <Icon n="diversity_3" fill size={34} />
-              </div>
+              <img src={LOGO_MARK} alt="" className="w-14 h-14" />
               <h1 className="font-head font-black text-[28px] leading-tight text-ink">
-                {U.short}生だけの、<br /><span className="text-brand-deep">情報共有コミュニティ</span>
+                {U.short}のことは、<br /><span className="text-brand-deep">{U.short}生に聞こう。</span>
               </h1>
-              <p className="text-[14px] text-sub leading-relaxed">
-                授業・暮らし・新歓のことを、同じ{U.name}の学生どうしで質問し、教え合えます。
-              </p>
             </div>
 
-            <div className="space-y-2.5">
+            <div className="grid grid-cols-3 gap-2">
               {points.map((p, i) => (
-                <div key={p.icon} className="flex gap-3.5 items-center bg-surface rounded-3xl p-3.5 shadow-soft border border-line/70 animate-fade-up" style={{ animationDelay: `${120 + i * 70}ms` }}>
-                  <div className="w-11 h-11 rounded-2xl bg-brand-tint text-brand-deep flex items-center justify-center flex-shrink-0">
-                    <Icon n={p.icon} fill size={24} />
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-bold text-[14px] text-ink">{p.title}</p>
-                    <p className="text-[12px] text-sub leading-relaxed">{p.text}</p>
-                  </div>
+                <div key={p.icon} className="flex flex-col items-center gap-1.5 bg-surface rounded-3xl py-4 px-1 border border-line/70 animate-fade-up" style={{ animationDelay: `${120 + i * 70}ms` }}>
+                  <Icon n={p.icon} fill size={26} className="text-brand" />
+                  <p className="font-bold text-[12px] text-ink whitespace-nowrap">{p.title}</p>
                 </div>
               ))}
             </div>
@@ -1030,20 +1363,14 @@
               <button onClick={submit} className={cx(BTN_PRIMARY, "w-full text-[15px] py-4")}>
                 {U.short}生として入る
               </button>
-              <p className="text-[12px] text-mute text-center">※ これはデモ版です。実際のメール送信・認証は行いません。</p>
+              <p className="text-[12px] text-mute text-center">デモ版（実際の認証は行いません）</p>
             </div>
 
             {!IS_STANDALONE && (
-              <div className="bg-sky-tint rounded-3xl p-4 flex gap-3 items-start">
-                <Icon n="add_to_home_screen" fill className="text-sky-ink mt-0.5" size={22} />
-                <div className="text-[12px] leading-relaxed">
-                  <p className="font-black text-sky-ink text-[13px]">ホーム画面に追加すると、1タップで開けます</p>
-                  <p className="text-sub mt-0.5">
-                    iPhone：ブラウザの共有ボタン →「ホーム画面に追加」<br />
-                    Android：ブラウザのメニュー →「ホーム画面に追加」
-                  </p>
-                </div>
-              </div>
+              <details className="text-[12px] text-sub text-center">
+                <summary className="cursor-pointer inline-flex items-center gap-1 font-bold list-none"><Icon n="add_to_home_screen" size={16} className="text-brand-deep" />ホーム画面に追加する</summary>
+                <p className="mt-2 leading-relaxed">iPhone：共有 →「ホーム画面に追加」／Android：メニュー →「ホーム画面に追加」</p>
+              </details>
             )}
           </div>
         </div>
@@ -1058,11 +1385,10 @@
           <button onClick={() => setOpen(!open)} aria-expanded={open} className="w-full flex items-center justify-between gap-2 text-left">
             <span className="flex items-center gap-2.5 min-w-0">
               <span className="w-9 h-9 rounded-full bg-surface text-sky-ink flex items-center justify-center flex-shrink-0">
-                <Icon n="volunteer_activism" fill size={20} />
+                <Icon n="auto_awesome" fill size={20} />
               </span>
               <span className="min-w-0">
-                <span className="block font-head font-black text-[14px] text-sky-ink">AIサポーターより</span>
-                <span className="block text-[12px] text-sub">みんなの回答が届くまで、そっと見守っています</span>
+                <span className="block font-head font-black text-[14px] text-sky-ink">AIのひとこと</span>
               </span>
             </span>
             <Icon n={open ? "expand_less" : "expand_more"} className="text-sky-ink" />
@@ -1070,17 +1396,16 @@
           {open && (
             <div className="space-y-3 animate-fade-in">
               <p className="text-[14px] leading-relaxed text-ink">{ai.intro}</p>
-              <p className="text-[12px] font-bold text-sky-ink">こんなふうに進めてみるのはどうでしょう</p>
               <ul className="space-y-2">
                 {ai.tips.map((t, i) => (
                   <li key={i} className="flex gap-2.5 items-start bg-surface rounded-2xl p-3">
-                    <Icon n="favorite" fill size={16} className="text-sky-ink mt-1" />
+                    <Icon n="check" size={16} className="text-sky-ink mt-1" />
                     <span className="text-[13px] leading-relaxed text-ink">{t}</span>
                   </li>
                 ))}
               </ul>
-              <p className="text-[13px] leading-relaxed text-ink">{ai.outro}</p>
-              <p className="text-[12px] text-sub leading-relaxed">※ AIサポーターからのメッセージです。学生の回答が届いたら、そちらをいちばんの頼りにしてくださいね。</p>
+              {ai.outro && <p className="text-[13px] leading-relaxed text-ink">{ai.outro}</p>}
+              <p className="text-[12px] text-mute">※ AIの回答です。先輩の回答が届いたらそちらを優先してね</p>
             </div>
           )}
         </div>
@@ -1091,12 +1416,11 @@
     function AnswerSummary({ post }) {
       const s = useMemo(() => summarizeAnswers(post.comments), [post.comments]);
       return (
-        <div className="bg-brand-tint rounded-3xl p-4 space-y-3.5 border border-brand/30">
+        <div className="bg-sunk rounded-3xl p-4 space-y-3.5">
           <div className="flex justify-between items-center gap-2">
             <span className="font-head font-black text-[15px] text-brand-deep flex items-center gap-1.5">
               <Icon n="auto_awesome" fill size={20} />みんなの回答まとめ
             </span>
-            <span className="bg-surface text-brand-deep text-[12px] font-bold px-2.5 py-0.5 rounded-full">自動まとめ（デモ）</span>
           </div>
 
           <div className="grid grid-cols-3 gap-2 text-center">
@@ -1106,11 +1430,11 @@
             </div>
             <div className="bg-surface rounded-2xl p-2.5">
               <span className="text-[12px] text-mute block">助かった！</span>
-              <span className="font-head font-black text-[18px] text-love-ink">{s.totalThanks}</span>
+              <span className="font-head font-black text-[18px]">{s.totalThanks}</span>
             </div>
             <div className="bg-surface rounded-2xl p-2.5">
               <span className="text-[12px] text-mute block">気になる</span>
-              <span className="font-head font-black text-[18px] text-ask-ink">{post.thanks}</span>
+              <span className="font-head font-black text-[18px]">{post.thanks}</span>
             </div>
           </div>
 
@@ -1118,7 +1442,7 @@
 
           {s.keywords.length > 0 && (
             <div className="space-y-2">
-              <span className="text-[12px] font-bold text-sub block">よく出てきた意見</span>
+              <span className="text-[12px] font-bold text-sub block">よく出た意見</span>
               {s.keywords.map(k => (
                 <div key={k.label} className="space-y-1">
                   <div className="flex justify-between text-[12px] font-bold">
@@ -1133,7 +1457,7 @@
             </div>
           )}
 
-          <div className="flex flex-wrap gap-1.5 items-center">
+          <div className="hidden">
             <span className="text-[12px] font-bold text-sub mr-1">回答した人</span>
             {Object.keys(s.grades).sort().map(g => (
               <span key={g} className="bg-surface text-ink text-[12px] font-bold px-2.5 py-0.5 rounded-full">{g}年 {s.grades[g]}</span>
@@ -1143,12 +1467,12 @@
 
           {s.best && (
             <div className="bg-surface rounded-2xl p-3 space-y-1">
-              <span className="text-[12px] font-black text-ask-ink flex items-center gap-1"><Icon n="stars" fill size={14} />いちばん助かった回答（助かった！ {s.best.thanks || 0}）</span>
+              <span className="text-[12px] font-black text-brand-deep flex items-center gap-1"><Icon n="stars" fill size={14} />ベストアンサー</span>
               <p className="text-[13px] leading-relaxed">{s.best.text}</p>
             </div>
           )}
 
-          <p className="text-[12px] text-sub leading-relaxed">※ デモ版では、回答に含まれるキーワードの集計でまとめています。本番ではAIが文章で要約し、反対意見や注意点も整理する想定です。</p>
+          <p className="text-[12px] text-mute">※ デモ：キーワード集計</p>
         </div>
       );
     }
@@ -1238,9 +1562,10 @@
       const [aiAnalysisResult, setAiAnalysisResult] = useState(null);
 
       const [openPointExchangeModal, setOpenPointExchangeModal] = useState(false);
-      const [myCoupons, setMyCoupons] = usePersistentState("myCoupons", () => makeInitialCoupons(U));
+      const [myCoupons, setMyCoupons] = usePersistentState("myCoupons2", () => makeInitialCoupons(U));
       const [activeTabPointModal, setActiveTabPointModal] = useState("exchange");
       const [activeCouponForUse, setActiveCouponForUse] = useState(null);
+      const [selectedStore, setSelectedStore] = useState(null);   // 協力店の詳細シート
 
       // 🔍 改善した検索ステート
       const [searchQuery, setSearchQuery] = useState("");
@@ -1278,6 +1603,20 @@
       const [reportReason, setReportReason] = useState("");
       const [reportedIds, setReportedIds] = usePersistentState("reportedIds", () => []);
       const [verified, setVerified] = usePersistentState("verified", () => false);
+
+      // 📜 画面を切り替えたら、スクロール位置を先頭に戻す
+      useEffect(() => { window.scrollTo(0, 0); }, [currentTab, verified]);
+      // マイページ内の切替（自分の投稿／気になる／活動ログ）は、切替ボタンが見える位置まで戻す
+      const subTabRef = useRef(null);
+      useEffect(() => {
+        const el = subTabRef.current;
+        if (!el) return;
+        const top = el.getBoundingClientRect().top + window.scrollY - 76;   // ヘッダーの高さぶん
+        if (window.scrollY > top) window.scrollTo(0, top);
+      }, [myPageSubTab]);
+      // ポイント交換シート内のタブ切替でも先頭へ
+      const pointScrollRef = useRef(null);
+      useEffect(() => { if (pointScrollRef.current) pointScrollRef.current.scrollTop = 0; }, [activeTabPointModal]);
       const [bannerDismissed, setBannerDismissed] = usePersistentState("bannerDismissed", () => false);
       const [showAllAnswers, setShowAllAnswers] = useState(false);
       useEffect(() => { setShowAllAnswers(false); }, [selectedPostId]);
@@ -1382,24 +1721,31 @@
         }
 
         setUserThanks(prev => prev - item.cost);
+        const ymd = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; };
         const newCoupon = {
           id: Date.now(),
+          storeId: item.storeId,
           title: item.title,
           cost: item.cost,
-          date: new Date().toISOString().split('T')[0],
-          code: `CAMPUS-CAF-${Math.floor(1000 + Math.random() * 9000)}`,
+          date: ymd(Date.now()),
+          expires: ymd(Date.now() + TICKET_VALID_DAYS * 86400000),
+          code: `TNG-${item.storeId.slice(0, 5).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`,
           isUsed: false
         };
 
         setMyCoupons([newCoupon, ...myCoupons]);
-        showToast(`☕ ${item.title} に交換しました！`);
+        setSelectedStore(null);
+        showToast(`${item.title} に交換しました`);
         setActiveTabPointModal("myCoupons");
       };
 
-      const handleUseCoupon = (couponId) => {
-        setMyCoupons(prev => prev.map(c => c.id === couponId ? { ...c, isUsed: true } : c));
-        setActiveCouponForUse(null);
-        showToast("✅ クーポンを使用しました！カフェでのご利用ありがとうございます。");
+      // 使用記録：読み取り日時・使用日時（秒まで）・店舗・受付番号（本番はサーバーに保存）
+      const handleUseCoupon = (couponId, scan) => {
+        const usedAt = Date.now();
+        const receipt = `R-${String(usedAt).slice(-6)}`;
+        const rec = { isUsed: true, usedAt, scannedAt: scan.at, storeId: scan.storeId, store: scan.storeName, receipt, method: "store-qr" };
+        setMyCoupons(prev => prev.map(c => c.id === couponId ? { ...c, ...rec } : c));
+        setActiveCouponForUse(prev => prev && prev.id === couponId ? { ...prev, ...rec } : prev);
       };
 
       const handleLogImageSelect = (e) => {
@@ -1671,7 +2017,7 @@ ${logsText}
           showToast("🙋 質問を投稿しました！回答が付くとここに表示されます");
         } else {
           setUserThanks(t => t + POINT_RULES.share);
-          showToast(`🎉 情報共有ありがとうございました！（+${POINT_RULES.share}pt）`);
+          showToast(`🎉 情報を共有しました（+${POINT_RULES.share}pt）`);
         }
       };
 
@@ -1824,9 +2170,7 @@ ${logsText}
           <header className="sticky top-0 z-30 bg-bg/95 px-4 pb-2.5 w-full" style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}>
             <div className="flex justify-between items-center gap-2">
               <div className="flex items-center gap-2 min-w-0">
-                <div className="hidden min-[380px]:flex w-9 h-9 rounded-2xl bg-brand text-on-brand items-center justify-center shadow-soft rotate-[-6deg] flex-shrink-0">
-                  <Icon n="diversity_3" fill size={22} />
-                </div>
+                <img src={LOGO_MARK} alt="" className="w-8 h-8 flex-shrink-0" />
                 <div className="min-w-0">
                   <h1 className="font-head font-black text-[13px] leading-tight whitespace-nowrap">キャンパスリアルポータル</h1>
                   <span className="text-[12px] text-sub flex items-center gap-1 truncate">
@@ -1843,16 +2187,15 @@ ${logsText}
                 >
                   <Icon n="notifications" fill={unreadTotal > 0} size={22} className={unreadTotal > 0 ? "text-brand-deep" : "text-sub"} />
                   {unreadTotal > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-love text-white text-[10px] font-black flex items-center justify-center">{unreadTotal}</span>
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-love text-white text-[10px] font-black flex items-center justify-center ring-2 ring-bg">{unreadTotal}</span>
                   )}
                 </button>
                 <button
                   onClick={() => setOpenPointExchangeModal(true)}
-                  className="bg-ask-tint text-ask-ink rounded-full pl-3 pr-2 py-2 flex items-center gap-1 font-black text-[13px] press"
+                  className="bg-surface border border-line/70 text-ink rounded-full pl-2.5 pr-3 py-2 flex items-center gap-1 font-black text-[13px] press"
                 >
-                  <Icon n="stars" fill size={18} />
+                  <Icon n="stars" fill size={18} className="text-brand" />
                   <span>{userThanks} pt</span>
-                  <Icon n="chevron_right" size={18} />
                 </button>
               </div>
             </div>
@@ -1866,12 +2209,9 @@ ${logsText}
 
                 {/* 📲 ホーム画面追加の案内（開く手間を減らす） */}
                 {showInstallBanner && (
-                  <div className="bg-sky-tint rounded-3xl p-3.5 flex gap-3 items-start w-full animate-fade-up">
-                    <Icon n="add_to_home_screen" fill size={22} className="text-sky-ink mt-0.5" />
-                    <div className="flex-1 min-w-0 text-[12px] leading-relaxed">
-                      <p className="font-black text-sky-ink text-[13px]">ホーム画面に追加すると、1タップで開けます</p>
-                      <p className="text-sub">iPhone：共有ボタン →「ホーム画面に追加」／Android：メニュー →「ホーム画面に追加」</p>
-                    </div>
+                  <div className="bg-surface border border-line/70 rounded-2xl pl-3.5 pr-1.5 py-1.5 flex gap-2 items-center w-full animate-fade-up">
+                    <Icon n="add_to_home_screen" size={20} className="text-brand-deep" />
+                    <p className="flex-1 min-w-0 text-[13px] font-bold">ホーム画面に追加して1タップで開く</p>
                     <button onClick={() => setBannerDismissed(true)} aria-label="閉じる" className="text-sub w-8 h-8 flex items-center justify-center flex-shrink-0 press">
                       <Icon n="close" size={18} />
                     </button>
@@ -1884,7 +2224,7 @@ ${logsText}
                     <Icon n="search" size={22} className="absolute left-4 top-1/2 -translate-y-1/2 text-mute" />
                     <input
                       type="text"
-                      placeholder="例：マクロ経済, 過去問, 作業スペース..."
+                      placeholder="授業名・場所・キーワードで探す"
                       value={searchQuery}
                       enterKeyHint="search"
                       onFocus={() => setIsSearchFocused(true)}
@@ -1924,7 +2264,7 @@ ${logsText}
                       )}
                       <div className="space-y-1.5">
                         <div className="flex justify-between items-center text-[12px] text-sub font-bold">
-                          <span className="flex items-center gap-1"><Icon n="local_fire_department" fill size={16} className="text-ask" />今みんなが調べているトレンド</span>
+                          <span className="flex items-center gap-1"><Icon n="local_fire_department" fill size={16} className="text-brand" />トレンド</span>
                           <button onClick={() => setIsSearchFocused(false)} className="text-mute font-bold">閉じる</button>
                         </div>
                         <div className="flex flex-wrap gap-2">
@@ -1974,7 +2314,7 @@ ${logsText}
                       ))}
                       {suggestions.titles.map(p => (
                         <button key={`t${p.id}`} onClick={() => { addHistory(searchQuery); setIsSearchFocused(false); setSelectedPost(p); }} className="w-full text-left px-3 py-2.5 rounded-2xl flex items-center gap-2.5 text-[13px] text-ink press">
-                          <Icon n={p.type === "question" ? "help" : "article"} fill size={18} className="text-ask-ink" /><span className="line-clamp-1 flex-1">{p.title}</span>
+                          <Icon n={p.type === "question" ? "help" : "article"} size={18} className="text-mute" /><span className="line-clamp-1 flex-1">{p.title}</span>
                         </button>
                       ))}
                       <button onClick={() => setIsSearchFocused(false)} className="w-full text-center py-1.5 text-[12px] text-mute font-bold">候補を閉じる</button>
@@ -1987,7 +2327,7 @@ ${logsText}
                       onClick={() => { setOnlyInfo(false); setOnlyQuestions(!onlyQuestions); }}
                       className={cx(
                         "px-3.5 py-2 rounded-full text-[13px] font-black whitespace-nowrap flex items-center gap-1 flex-shrink-0 press",
-                        onlyQuestions ? "bg-ask text-on-brand shadow-soft" : "bg-ask-tint text-ask-ink"
+                        onlyQuestions ? "bg-brand text-on-brand shadow-soft" : "bg-surface text-sub border border-line/70"
                       )}
                     >
                       <Icon n="help" fill size={16} />
@@ -2009,10 +2349,10 @@ ${logsText}
                       onClick={() => setSearchQuery(searchQuery === "楽単" ? "" : "楽単")}
                       className={cx(
                         "px-3.5 py-2 rounded-full text-[13px] font-bold whitespace-nowrap flex-shrink-0 press",
-                        searchQuery === "楽単" ? "bg-ask text-on-brand font-black shadow-soft" : "bg-surface text-sub border border-line/70"
+                        searchQuery === "楽単" ? "bg-brand text-on-brand font-black shadow-soft" : "bg-surface text-sub border border-line/70"
                       )}
                     >
-                      #楽単・おすすめ
+                      #楽単
                     </button>
                   </ScrollRow>
                 </div>
@@ -2078,10 +2418,6 @@ ${logsText}
                         <p className="text-[14px] text-ink leading-relaxed font-bold bg-surface rounded-2xl p-3.5">
                           {activeDirectAnswer.summary}
                         </p>
-                        <div className="flex flex-wrap justify-between items-center gap-x-3 text-[12px] text-sub">
-                          <span>以下に信頼度の高い原文ノートを直結表示しています</span>
-                          <span className="text-sky-ink font-bold">要点確認完了 ✓</span>
-                        </div>
                       </div>
                     )}
 
@@ -2090,8 +2426,8 @@ ${logsText}
                         <div className="w-14 h-14 rounded-3xl bg-sunk text-mute mx-auto flex items-center justify-center">
                           <Icon n="search_off" size={30} />
                         </div>
-                        <p className="font-head font-black text-[16px]">該当する情報が見つかりませんでした</p>
-                        <p className="text-[13px] text-sub">条件を変更するか、みんなに質問してみましょう</p>
+                        <p className="font-head font-black text-[16px]">見つかりませんでした</p>
+
                         <div className="flex flex-wrap justify-center gap-2 pt-1">
                           {TRENDING_KEYWORDS.slice(0, 4).map(k => (
                             <button key={k} onClick={() => { resetResultFilters(); setOnlyQuestions(false); runSearch(k); }} className="bg-sunk text-ink px-3 py-1.5 rounded-full text-[12px] font-bold press">{k}</button>
@@ -2099,10 +2435,10 @@ ${logsText}
                         </div>
                         <button
                           onClick={() => openAsk(searchQuery.trim())}
-                          className="mt-1 bg-ask text-on-brand font-black text-[14px] px-5 py-3 rounded-2xl shadow-soft inline-flex items-center gap-1.5 press"
+                          className="mt-1 bg-brand text-on-brand font-black text-[14px] px-5 py-3 rounded-2xl shadow-soft inline-flex items-center gap-1.5 press"
                         >
                           <Icon n="help" fill size={20} />
-                          {searchQuery.trim() ? "この内容を質問してみる" : "質問してみる"}
+                          質問してみる
                         </button>
                       </div>
                     ) : (
@@ -2126,7 +2462,7 @@ ${logsText}
                   <div className="space-y-4">
                     <div className="flex items-baseline justify-between px-1 pt-1">
                       <h2 className="font-head font-black text-[20px]">新着</h2>
-                      <p className="text-[12px] text-mute">※ デモ版：表示中の投稿・質問はサンプルです</p>
+                      <p className="text-[12px] text-mute">サンプル表示</p>
                     </div>
 
                     {filteredPosts.length === 0 && (
@@ -2155,10 +2491,8 @@ ${logsText}
                 <div className="w-16 h-16 bg-brand-tint text-brand-deep rounded-3xl flex items-center justify-center mx-auto">
                   <Icon n="photo_camera" fill size={34} />
                 </div>
-                <h2 className="font-head font-black text-[20px] leading-tight">パシャっと撮影・OCR自動解析</h2>
-                <p className="text-[13px] text-sub leading-relaxed max-w-xs mx-auto">
-                  キャンパス内の掲示板や休講案内、講義ノートを撮影するだけ！自動でテキスト化・タグ付けされます。
-                </p>
+                <h2 className="font-head font-black text-[20px] leading-tight">撮るだけで投稿</h2>
+                <p className="text-[13px] text-sub">掲示板やノートを、文字起こしして共有</p>
 
                 <input
                   type="file"
@@ -2171,8 +2505,7 @@ ${logsText}
                 {isOcrProcessing && (
                   <div className="bg-sunk rounded-3xl p-8 text-center space-y-2.5 animate-fade-in">
                     <div className="inline-block animate-spin rounded-full h-9 w-9 border-4 border-brand border-t-transparent"></div>
-                    <p className="font-black text-[14px] text-brand-deep">画像をスキャン中...</p>
-                    <p className="text-[12px] text-sub">文字認識(OCR)と自動タグ付けを実行しています</p>
+                    <p className="font-black text-[14px] text-brand-deep">読み取り中…</p>
                   </div>
                 )}
 
@@ -2193,7 +2526,7 @@ ${logsText}
                         <Icon n="close" size={18} />
                       </button>
                       <div className="absolute bottom-2.5 left-2.5 bg-brand text-on-brand font-black text-[12px] px-2.5 py-1 rounded-full shadow-soft flex items-center gap-1">
-                        <Icon n="auto_awesome" fill size={14} /> AI解析完了
+                        <Icon n="check" size={14} /> 読み取り完了
                       </div>
                     </div>
 
@@ -2201,13 +2534,13 @@ ${logsText}
                       <div className="flex justify-between items-center">
                         <span className="font-head font-black text-[14px] text-brand-deep flex items-center gap-1.5">
                           <Icon n="auto_awesome" fill size={18} />
-                          <span>AI解析プレビュー結果</span>
+                          <span>読み取り結果</span>
                         </span>
-                        <span className="text-[12px] text-sub">必要に応じて微調整できます</span>
+                        <span className="text-[12px] text-sub">編集できます</span>
                       </div>
 
                       <div>
-                        <span className={LABEL}>自動タグ付け</span>
+                        <span className={LABEL}>タグ</span>
                         <div className="flex gap-1.5 flex-wrap">
                           {ocrTags.map((tag, idx) => (
                             <span key={idx} className="bg-brand-tint text-brand-deep font-bold px-2.5 py-1 rounded-full text-[12px]">
@@ -2218,19 +2551,19 @@ ${logsText}
                       </div>
 
                       <div>
-                        <label className={LABEL}>抽出タイトル</label>
+                        <label className={LABEL}>タイトル</label>
                         <input type="text" value={newTitle} onChange={(e) => setNewTitle(e.target.value)} className={cx(INPUT, "bg-surface font-bold")} />
                       </div>
 
                       <div>
-                        <label className={LABEL}>読み取りテキスト（OCR）</label>
+                        <label className={LABEL}>本文</label>
                         <textarea rows="3" value={newContent} onChange={(e) => setNewContent(e.target.value)} className={cx(INPUT, "bg-surface leading-relaxed")} />
                       </div>
                     </div>
 
                     <button onClick={handleCreatePost} className={cx(BTN_PRIMARY, "w-full flex items-center justify-center gap-1.5")}>
                       <Icon n="send" fill size={18} />
-                      <span>この内容でみんなに共有する（+{POINT_RULES.share}pt）</span>
+                      <span>共有する（+{POINT_RULES.share}pt）</span>
                     </button>
                   </div>
                 )}
@@ -2241,8 +2574,7 @@ ${logsText}
                     className="border-2 border-dashed border-brand/50 rounded-3xl p-8 bg-brand-tint/60 flex flex-col items-center justify-center cursor-pointer press"
                   >
                     <Icon n="cloud_upload" size={40} className="text-brand-deep mb-1" />
-                    <span className="text-[14px] font-black text-brand-deep">写真を選択 または カメラ撮影</span>
-                    <span className="text-[12px] text-sub mt-0.5">JPEG, PNG 対応・AI自動解析</span>
+                    <span className="text-[14px] font-black text-brand-deep">写真を撮る・選ぶ</span>
                   </label>
                 )}
               </div>
@@ -2251,9 +2583,8 @@ ${logsText}
             {/* TAB 2: マイページ */}
             {currentTab === 2 && (
               <div className="space-y-4 w-full animate-fade-up">
-                <div className="bg-gradient-to-br from-brand to-brand/70 text-on-brand p-5 rounded-[2rem] shadow-lift relative overflow-hidden w-full">
-                  <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/25 pointer-events-none"></div>
-                  <div className="absolute right-10 -bottom-10 w-24 h-24 rounded-full bg-white/15 pointer-events-none"></div>
+                <div className="bg-brand text-on-brand p-5 rounded-[2rem] shadow-soft relative overflow-hidden w-full">
+                  <div className="absolute -right-8 -top-8 w-32 h-32 rounded-full bg-white/10 pointer-events-none"></div>
 
                   <div className="flex items-center gap-3.5 mb-4 relative">
                     <div className="w-16 h-16 rounded-full bg-surface text-brand-deep font-head font-black flex items-center justify-center text-[20px] shadow-soft flex-shrink-0">
@@ -2265,7 +2596,7 @@ ${logsText}
                         <Icon n="verified" fill size={20} />
                       </div>
                       <span className="inline-block text-[12px] font-bold mt-0.5">
-                        {U.faculty} {userGrade}年 / 🏆 キャンパスの灯火（Lv.4）
+                        {U.faculty} {userGrade}年・Lv.4
                       </span>
                     </div>
                   </div>
@@ -2280,8 +2611,8 @@ ${logsText}
                       <span className="font-head font-black text-[16px] text-brand-deep">124 <span className="text-[12px] font-bold text-mute">人</span></span>
                     </div>
                     <button onClick={() => setOpenPointExchangeModal(true)} className="press">
-                      <span className="text-mute text-[12px] block font-medium">ポイント ➔</span>
-                      <span className="font-head font-black text-[16px] text-ask-ink">{userThanks} <span className="text-[12px] font-bold text-mute">pt</span></span>
+                      <span className="text-mute text-[12px] block font-medium">ポイント</span>
+                      <span className="font-head font-black text-[16px] text-brand-deep">{userThanks} <span className="text-[12px] font-bold text-mute">pt</span></span>
                     </button>
                   </div>
 
@@ -2289,8 +2620,8 @@ ${logsText}
                     onClick={() => setOpenReportModal(true)}
                     className="w-full bg-surface text-brand-deep font-black text-[13px] py-3 rounded-2xl shadow-soft press flex items-center justify-center gap-1.5 relative"
                   >
-                    <Icon n="auto_awesome" fill size={18} className="text-ask" />
-                    <span>SNS共有用ハイライトカードを表示</span>
+                    <Icon n="ios_share" size={18} />
+                    <span>実績カードをシェア</span>
                   </button>
                 </div>
 
@@ -2298,21 +2629,20 @@ ${logsText}
                         <div className="flex justify-between items-center mb-3 gap-2">
                           <span className="font-head font-black text-[15px] flex items-center gap-1.5 min-w-0">
                             <Icon n="groups" fill size={20} className="text-brand-deep" />
-                            <span className="truncate">キャンパス助け合い状況</span>
+                            <span className="truncate">みんなの助け合い</span>
                           </span>
-                          <span className="bg-brand-tint text-brand-deep text-[12px] font-bold px-2.5 py-0.5 rounded-full flex-shrink-0">学内認証コミュ</span>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
-                          <div className="bg-love-tint rounded-2xl p-3">
-                            <span className="text-love-ink text-[12px] font-bold block">{U.short}累計感謝</span>
-                            <span className="font-head font-black text-love-ink text-[22px] leading-tight flex items-center gap-1">
-                              <Icon n="favorite" fill size={18} />18,420<span className="text-[12px] font-bold">回</span>
+                          <div className="bg-sunk rounded-2xl p-3">
+                            <span className="text-sub text-[12px] font-bold block">{U.short}の「助かった！」</span>
+                            <span className="font-head font-black text-ink text-[22px] leading-tight flex items-center gap-1">
+                              <Icon n="favorite" fill size={18} className="text-love" />18,420
                             </span>
                           </div>
-                          <div className="bg-brand-tint rounded-2xl p-3">
-                            <span className="text-brand-deep text-[12px] font-bold block">{U.faculty}貢献</span>
-                            <span className="font-head font-black text-brand-deep text-[22px] leading-tight">
-                              3,850<span className="text-[12px] font-bold">pt(2位)</span>
+                          <div className="bg-sunk rounded-2xl p-3">
+                            <span className="text-sub text-[12px] font-bold block">{U.faculty}の順位</span>
+                            <span className="font-head font-black text-ink text-[22px] leading-tight">
+                              2<span className="text-[12px] font-bold">位</span>
                             </span>
                           </div>
                         </div>
@@ -2320,13 +2650,9 @@ ${logsText}
 
 
                 <div className="bg-surface rounded-3xl p-4 space-y-3.5 shadow-soft border border-line/70 w-full">
-                  <div className="flex items-start gap-2.5">
-                    <div className="w-9 h-9 rounded-2xl bg-brand-tint text-brand-deep flex items-center justify-center flex-shrink-0">
-                      <Icon n="visibility_off" fill size={20} />
-                    </div>
-                    <p className="text-[13px] text-sub leading-relaxed">
-                      他の学生には、名前ではなく「{myLabel.replace("（あなた）", "")}」のように学部・学年だけが表示されます。投稿や回答のときに「匿名」も選べます。
-                    </p>
+                  <div className="flex items-center gap-2 text-[13px] text-sub">
+                    <Icon n="visibility_off" size={18} className="text-brand-deep" />
+                    <span>表示名は「{myLabel.replace("（あなた）", "")}」（匿名も可）</span>
                   </div>
 
                   <div>
@@ -2343,7 +2669,7 @@ ${logsText}
                   </div>
 
                   <div className="flex items-center justify-between gap-3 pt-3 border-t border-line/70">
-                    <span className="text-[12px] text-mute leading-snug">デモ版 2026-10-13｜質問・回答・ポイントはこの端末に保存されます</span>
+                    <span className="text-[12px] text-mute leading-snug">デモ：データはこの端末に保存</span>
                     <button onClick={handleResetDemo} className="flex-shrink-0 bg-sunk text-sub text-[12px] font-bold px-3 py-2 rounded-xl flex items-center gap-1 press">
                       <Icon n="restart_alt" size={16} />
                       リセット
@@ -2351,6 +2677,7 @@ ${logsText}
                   </div>
                 </div>
 
+                <div ref={subTabRef}></div>
                 <Segmented
                   value={myPageSubTab}
                   onChange={setMyPageSubTab}
@@ -2363,10 +2690,6 @@ ${logsText}
 
                 {myPageSubTab === "posts" && (
                   <div className="space-y-3 w-full">
-                    <div className="text-[12px] text-sub flex justify-between items-center px-1">
-                      <span>過去に全体共有した情報</span>
-                      <span className="text-brand-deep font-black">全 {posts.filter(p => p.author.includes("あなた")).length} 件</span>
-                    </div>
 
                     {posts.filter(p => p.author.includes("あなた")).map(post => (
                       <div
@@ -2379,15 +2702,12 @@ ${logsText}
                             {post.type === "question" && <QuestionBadge />}
                             <CategoryChip>{post.category}</CategoryChip>
                           </div>
-                          <span className="text-brand-deep text-[12px] font-bold flex items-center gap-0.5">
-                            <Icon n="public" size={14} /> 全員に公開中
-                          </span>
+                          <Icon n="public" size={16} className="text-mute" />
                         </div>
                         <h3 className="font-head font-bold text-[15px] leading-snug">{post.title}</h3>
-                        <p className="text-sub text-[13px] line-clamp-2">{post.content}</p>
-                        <div className="flex justify-between items-center pt-2 border-t border-line/70 text-[12px] text-mute">
-                          <span>👀 {post.views} PV • 💖 {post.thanks} サンクス</span>
-                          <span className="text-brand-deep font-bold">詳細を見る ➔</span>
+                        <div className="flex gap-3 items-center text-[12px] text-mute">
+                          <span className="flex items-center gap-1"><Icon n="visibility" size={15} />{post.views}</span>
+                          <span className="flex items-center gap-1"><Icon n="favorite" size={15} />{post.thanks}</span>
                         </div>
                       </div>
                     ))}
@@ -2396,12 +2716,11 @@ ${logsText}
 
                 {myPageSubTab === "watching" && (
                   <div className="space-y-3 w-full">
-                    <p className="text-[12px] text-sub px-1">「気になる」を押した質問です。新しい回答が付くと、右上の🔔でお知らせします。</p>
+                    <p className="text-[12px] text-sub px-1">新しい回答は🔔でお知らせします</p>
                     {posts.filter(p => p.isLiked && p.type === "question").length === 0 && (
                       <div className="text-center py-8 bg-surface rounded-3xl shadow-soft border border-line/70 space-y-1.5 px-4">
                         <div className="w-14 h-14 rounded-3xl bg-sunk text-mute mx-auto flex items-center justify-center"><Icon n="favorite" size={28} /></div>
                         <p className="font-head font-black text-[15px]">まだ「気になる」はありません</p>
-                        <p className="text-[12px] text-sub">質問カードの「気になる」を押すと、ここに集まります。</p>
                       </div>
                     )}
                     {posts.filter(p => p.isLiked && p.type === "question").map((post, idx) => (
@@ -2421,34 +2740,22 @@ ${logsText}
 
                 {myPageSubTab === "logs" && (
                   <div className="space-y-3 w-full">
-                    <div className="bg-sky-tint p-4 rounded-3xl space-y-2.5">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-1.5 font-head font-black text-sky-ink text-[15px]">
-                          <Icon n="auto_awesome" fill size={20} />
-                          <span>AI活動ログ自己分析</span>
-                        </div>
-                        <span className="text-[12px] bg-surface text-sky-ink px-2.5 py-0.5 rounded-full font-bold">Gemini AI</span>
-                      </div>
-                      <p className="text-[13px] text-sub leading-relaxed">
-                        溜まった活動ログから「1年前の自分」と「隠れた自分の強み」をAIが自動で分析・フィードバックしてくれます。
-                      </p>
-                      <button
-                        onClick={handleRunAiAnalysis}
-                        className="w-full bg-surface text-sky-ink font-black py-3 rounded-2xl text-[14px] shadow-soft flex items-center justify-center gap-1.5 press"
-                      >
-                        <Icon n="psychology" fill size={20} />
-                        <span>蓄積ログから自分の特徴・強みを分析する</span>
-                      </button>
-                    </div>
+                    <button
+                      onClick={handleRunAiAnalysis}
+                      className="w-full bg-surface border border-line/70 text-brand-deep font-black py-3.5 rounded-2xl text-[14px] shadow-soft flex items-center justify-center gap-1.5 press"
+                    >
+                      <Icon n="auto_awesome" fill size={20} />
+                      <span>AIで自分の強みを見つける</span>
+                    </button>
 
                     <div className="flex justify-between items-center px-1">
-                      <span className="text-[12px] text-sub">学習・メモ・キャンパス活動の蓄積 ({myLogs.length}件)</span>
+                      <span className="text-[12px] text-sub">{myLogs.length}件</span>
                       <button
                         onClick={() => setOpenLogModal(true)}
                         className="bg-brand text-on-brand font-black text-[13px] px-3.5 py-2 rounded-full flex items-center gap-1 shadow-soft press"
                       >
                         <Icon n="add" size={18} />
-                        <span>ログを書き残す</span>
+                        <span>記録する</span>
                       </button>
                     </div>
 
@@ -2464,12 +2771,11 @@ ${logsText}
                             onClick={(e) => { e.stopPropagation(); toggleLogPrivacy(log.id); }}
                             className={cx(
                               "px-2.5 py-1 rounded-full font-bold flex items-center gap-1 text-[12px] press",
-                              log.privacy === "PUBLIC" ? "bg-brand-tint text-brand-deep" : log.privacy === "FOLLOWERS" ? "bg-ask-tint text-ask-ink" : "bg-sunk text-sub"
+                              log.privacy === "PUBLIC" ? "bg-brand-tint text-brand-deep" : "bg-sunk text-sub"
                             )}
                           >
                             <Icon n={log.privacy === "PUBLIC" ? "public" : log.privacy === "FOLLOWERS" ? "lock" : "visibility_off"} size={14} />
-                            <span>{log.privacy === "PUBLIC" ? "全員に公開" : log.privacy === "FOLLOWERS" ? "フォロワー限定" : "自分のみ"}</span>
-                            <Icon n="swap_horiz" size={14} className="opacity-60" />
+                            <span>{log.privacy === "PUBLIC" ? "公開" : log.privacy === "FOLLOWERS" ? "フォロワー" : "自分のみ"}</span>
                           </button>
                         </div>
 
@@ -2481,12 +2787,7 @@ ${logsText}
                           </div>
                         )}
 
-                        {log.note && <p className="text-sub text-[13px] leading-relaxed bg-sunk p-3 rounded-2xl line-clamp-2">{log.note}</p>}
-
-                        <div className="flex justify-between items-center text-[12px] text-mute">
-                          <span className="text-brand-deep font-bold">詳細を見る ➔</span>
-                          <span>{log.date} 記録</span>
-                        </div>
+                        <div className="text-[12px] text-mute">{log.date}</div>
                       </div>
                     ))}
                   </div>
@@ -2497,80 +2798,41 @@ ${logsText}
             {/* TAB 3: プレミアム */}
             {currentTab === 3 && (
               <div className="space-y-4 w-full animate-fade-up">
-                <div className="bg-gradient-to-br from-ask-tint via-surface to-ask-tint p-5 rounded-[2rem] shadow-lift border border-ask/40 relative overflow-hidden text-center space-y-4">
-                  <div className="absolute -top-10 -right-10 w-32 h-32 bg-ask/30 rounded-full pointer-events-none"></div>
-                  <div className="absolute -bottom-12 -left-8 w-28 h-28 bg-brand/15 rounded-full pointer-events-none"></div>
-
-                  <div className="inline-flex items-center gap-1.5 bg-ask text-on-brand px-3.5 py-1 rounded-full text-[12px] font-black shadow-soft relative">
-                    <Icon n="stars" fill size={15} />
-                    <span>CAMPUS PORTAL PREMIUM</span>
+                <div className="bg-surface p-5 rounded-[2rem] shadow-soft border border-line/70 text-center space-y-5">
+                  <div className="space-y-2">
+                    <span className="inline-flex items-center gap-1 text-brand-deep text-[12px] font-black tracking-wider">
+                      <Icon n="workspace_premium" fill size={16} />PREMIUM
+                    </span>
+                    <h2 className="font-head font-black text-[24px] leading-tight">テスト前が、ラクになる。</h2>
                   </div>
 
-                  <div className="space-y-1.5 relative">
-                    <h2 className="font-head font-black text-[22px] text-ask-ink leading-tight">
-                      キャンパスライフを最速攻略。<br />極上のポータル体験を。
-                    </h2>
-                    <p className="text-[13px] text-sub font-medium">
-                      テスト対策の時短から広告非表示まで、大学生活の効率を最大化。
-                    </p>
+                  <div className="flex items-baseline justify-center gap-1">
+                    <span className="font-head text-[40px] leading-none font-black text-ink">¥500</span>
+                    <span className="text-[13px] text-sub font-bold">/月</span>
                   </div>
 
-                  <div className="bg-surface rounded-3xl p-4 text-left space-y-2.5 relative shadow-soft">
-                    <div className="absolute -top-3 right-4 bg-ask text-on-brand text-[12px] font-black px-3 py-1 rounded-full shadow-soft">
-                      7日間無料体験付き
-                    </div>
-
-                    <div className="flex justify-between items-end border-b border-line pb-3">
-                      <div>
-                        <span className="text-[12px] text-sub font-bold block">月額プレミアムパス</span>
-                        <div className="flex items-baseline gap-1">
-                          <span className="font-head text-[32px] leading-none font-black text-ask-ink">¥500</span>
-                          <span className="text-[12px] text-sub font-bold">/ 月（税込）</span>
-                        </div>
-                      </div>
-                      <span className="text-[12px] text-ask-ink font-bold bg-ask-tint px-2.5 py-1 rounded-full">学割適用価格</span>
-                    </div>
-
-                    <p className="text-[12px] text-sub">
-                      ※いつでもアプリ内から1タップで解約可能です。無料体験終了まで料金は発生しません。
-                    </p>
-                  </div>
-
-                  <div className="space-y-2.5 text-left relative">
-                    <h3 className="font-head font-black text-[15px] text-ask-ink flex items-center gap-1.5">
-                      <Icon n="workspace_premium" fill size={20} />
-                      <span>プレミアム限定の4大特典</span>
-                    </h3>
-
+                  <div className="grid grid-cols-2 gap-2 text-left">
                     {[
-                      { icon: "auto_stories", title: "過去問・解説ノート5年分 無制限閲覧", text: "過去すべてのテスト対策ファイル・講義ノートを無制限で表示＆ダウンロード。" },
-                      { icon: "psychology", title: "AI要約ダイレクト検索 無制限利用", text: "要点だけを1秒で即回答するAI要約カードを無制限で利用可能。" },
-                      { icon: "block", title: "広告完全非表示＆爆速読み込み", text: "すべてのバナー・スポンサー枠を非表示にし、ストレスゼロの表示速度を実現。" },
-                      { icon: "verified_user", title: "ゴールドVIPバッジ＆投稿の優先表示", text: "投稿やコメントに黄金のVIP称号が付与され、質問・共有時の注目度UP。" }
+                      { icon: "auto_stories", title: "過去問 見放題" },
+                      { icon: "bolt", title: "AI要約 使い放題" },
+                      { icon: "block", title: "広告なし" },
+                      { icon: "verified", title: "優先表示" }
                     ].map(f => (
-                      <div key={f.icon} className="bg-surface p-3.5 rounded-2xl shadow-soft flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-2xl bg-ask-tint text-ask-ink flex items-center justify-center flex-shrink-0">
-                          <Icon n={f.icon} fill size={22} />
-                        </div>
-                        <div>
-                          <h4 className="font-bold text-[14px] leading-snug">{f.title}</h4>
-                          <p className="text-[12px] text-sub leading-relaxed mt-0.5">{f.text}</p>
-                        </div>
+                      <div key={f.icon} className="bg-sunk p-3 rounded-2xl flex items-center gap-2">
+                        <Icon n={f.icon} fill size={22} className="text-brand flex-shrink-0" />
+                        <span className="font-bold text-[13px] leading-snug">{f.title}</span>
                       </div>
                     ))}
                   </div>
 
-                  <button
-                    onClick={() => showToast("🔒 無料体験（7日間）へ進みます（デモ）")}
-                    className="w-full bg-ask text-on-brand font-black py-4 rounded-2xl shadow-lift press text-[15px] flex items-center justify-center gap-1.5 relative"
-                  >
-                    <Icon n="workspace_premium" fill size={22} />
-                    <span>まずは7日間無料で体験してみる</span>
-                  </button>
-
-                  <div className="flex items-center justify-center gap-4 text-[12px] text-sub relative">
-                    <span className="flex items-center gap-1"><Icon n="check_circle" fill size={15} className="text-brand-deep" /> いつでも解約可能</span>
-                    <span className="flex items-center gap-1"><Icon n="check_circle" fill size={15} className="text-brand-deep" /> 無料期間中は¥0</span>
+                  <div className="space-y-2">
+                    <button
+                      onClick={() => showToast("無料体験（7日間）へ進みます（デモ）")}
+                      className={cx(BTN_PRIMARY, "w-full py-4 text-[15px]")}
+                    >
+                      7日間 無料で試す
+                    </button>
+                    <p className="text-[12px] text-mute">いつでも解約OK・無料期間中は¥0</p>
                   </div>
                 </div>
               </div>
@@ -2595,7 +2857,7 @@ ${logsText}
                   onClick={() => setOpenCompose(true)}
                   aria-label="投稿する"
                   className="absolute left-1/2 -top-8 w-[66px] h-[66px] rounded-full text-on-brand flex flex-col items-center justify-center gap-0.5 press"
-                  style={{ transform: "translateX(-50%)", background: "linear-gradient(150deg, rgb(var(--brand)) 0%, rgb(var(--brand-deep)) 100%)", boxShadow: "0 0 0 5px rgb(var(--bg)), 0 14px 24px -10px rgb(var(--brand-deep) / .65)" }}
+                  style={{ transform: "translateX(-50%)", background: "rgb(var(--brand))", boxShadow: "0 0 0 5px rgb(var(--bg)), 0 10px 20px -10px rgb(0 0 0 / .35)" }}
                 >
                   <Icon n="add" size={28} />
                   <span className="text-[12px] font-black leading-none">投稿</span>
@@ -2604,11 +2866,11 @@ ${logsText}
             ) : (
               <button
                 key={item.tab}
-                onClick={() => setCurrentTab(item.tab)}
+                onClick={() => { if (currentTab === item.tab) window.scrollTo({ top: 0, behavior: "smooth" }); else setCurrentTab(item.tab); }}
                 aria-current={currentTab === item.tab ? "page" : undefined}
                 className={cx(
                   "flex flex-col items-center gap-0.5 py-1.5 px-1.5 rounded-full min-w-[58px] press",
-                  currentTab === item.tab ? "bg-brand-tint text-brand-deep font-black" : "text-sub font-bold"
+                  currentTab === item.tab ? "text-brand-deep font-black" : "text-mute font-bold"
                 )}
               >
                 <Icon n={item.icon} fill={currentTab === item.tab} size={24} />
@@ -2670,8 +2932,8 @@ ${logsText}
                 </div>
               </div>
 
-              <div className="px-5 pb-4 pt-2 overflow-y-auto space-y-4 flex-1">
-                <h2 className="font-head font-black text-[20px] leading-snug">{selectedPost.title}</h2>
+              <div key={selectedPost.id} className="px-5 pb-4 pt-2 overflow-y-auto space-y-4 flex-1">
+                <h2 className="font-head font-black text-[20px] leading-snug">{selectedPost.title.replace(/^【質問】\s*/, "")}</h2>
                 <p className="text-[14px] text-sub leading-relaxed break-words whitespace-pre-wrap">{selectedPost.content}</p>
                 {extractTags(selectedPost).length > 0 && (
                   <div className="flex flex-wrap gap-x-3 gap-y-1 mt-2">
@@ -2688,12 +2950,12 @@ ${logsText}
                 )}
 
                 <div className="flex justify-between items-center pt-3 border-t border-line">
-                  <span className="text-mute text-[12px]">👀 {selectedPost.views} 閲覧</span>
+                  <span className="text-mute text-[12px] flex items-center gap-1"><Icon n="visibility" size={15} />{selectedPost.views}</span>
                   <button
                     onClick={(e) => handleThanks(e, selectedPost.id)}
                     className={cx(
                       "flex items-center gap-1.5 px-4 py-2 rounded-full font-black text-[14px] press",
-                      selectedPost.isLiked ? "bg-love text-white shadow-soft" : "bg-love-tint text-love-ink"
+                      selectedPost.isLiked ? "bg-love text-white shadow-soft" : "bg-surface border border-line text-ink"
                     )}
                   >
                     <Icon n="favorite" fill={selectedPost.isLiked} size={18} />
@@ -2706,7 +2968,7 @@ ${logsText}
                   <h3 className="font-head font-black text-[16px]">
                     {isQuestion ? `回答 (${selectedPost.commentsCount}件)` : `コメント (${selectedPost.commentsCount}件)`}
                     {sortedComments.length > 1 && (
-                      <span className="ml-2 text-[12px] font-medium text-mute font-sans">「助かった！」が多い順</span>
+                      <span className="ml-2 text-[12px] font-medium text-mute font-sans">人気順</span>
                     )}
                   </h3>
                   {isQuestion && selectedPost.ai && <AiAnswerCard key={selectedPost.id} ai={selectedPost.ai} hasStudentAnswers={hasStudentAnswers} />}
@@ -2714,16 +2976,13 @@ ${logsText}
                     {sortedComments.length === 0 ? (
                       <div className="text-center py-3 space-y-2.5">
                         <p className="text-mute text-[13px]">
-                          {isQuestion ? "まだ回答がありません。知っていることがあれば、教えてあげよう！" : "コメントはまだありません。最初のコメントを投稿しよう！"}
+                          {isQuestion ? "まだ回答がありません" : "まだコメントがありません"}
                         </p>
                         {isQuestion && isMine(selectedPost.author) && (
-                          <div className="border-2 border-dashed border-ask/60 bg-ask-tint rounded-3xl p-3.5 space-y-2">
-                            <p className="text-[12px] text-ask-ink leading-relaxed">
-                              デモ版：回答は他の学生の端末には届きません。動きを試すには、下のボタンでサンプル回答を追加するか、回答欄に自分で書いてみてください。
-                            </p>
+                          <div>
                             <button
                               onClick={() => handleAddDemoAnswer(selectedPost.id)}
-                              className="bg-ask text-on-brand font-black text-[13px] px-4 py-2 rounded-xl press"
+                              className="bg-sunk text-ink font-bold text-[13px] px-4 py-2 rounded-xl press"
                             >
                               サンプル回答を追加（デモ）
                             </button>
@@ -2746,12 +3005,12 @@ ${logsText}
                             key={c.id}
                             className={cx(
                               "p-3.5 rounded-3xl space-y-2",
-                              best ? "bg-brand-tint border-2 border-brand/50" : "bg-sunk"
+                              best ? "bg-surface border-2 border-brand" : "bg-sunk"
                             )}
                           >
                             {best && (
-                              <span className="inline-flex items-center gap-1 bg-ask text-on-brand text-[12px] font-black px-2.5 py-0.5 rounded-full">
-                                <Icon n="stars" fill size={14} />いちばん助かった
+                              <span className="inline-flex items-center gap-1 bg-brand text-on-brand text-[12px] font-black px-2.5 py-0.5 rounded-full">
+                                <Icon n="stars" fill size={14} />ベストアンサー
                               </span>
                             )}
                             <div className="flex items-center gap-2">
@@ -2766,7 +3025,7 @@ ${logsText}
                                 disabled={mine}
                                 className={cx(
                                   "flex items-center gap-1 px-3 py-1 rounded-full font-black text-[12px] press",
-                                  c.isLiked ? "bg-love text-white" : mine ? "bg-surface text-mute" : "bg-love-tint text-love-ink"
+                                  c.isLiked ? "bg-love text-white" : mine ? "text-mute" : "bg-surface border border-line text-ink"
                                 )}
                               >
                                 <Icon n="favorite" fill={c.isLiked} size={15} />
@@ -2797,7 +3056,7 @@ ${logsText}
 
               <div className="px-4 pt-2.5 pb-3.5 border-t border-line bg-surface space-y-1.5">
                 {answerAnonymous && (
-                  <p className="text-[12px] text-brand-deep font-bold flex items-center gap-1"><Icon n="visibility_off" fill size={14} />匿名で{isQuestion ? "回答" : "コメント"}します（学部・学年も非表示）</p>
+                  <p className="text-[12px] text-brand-deep font-bold flex items-center gap-1"><Icon n="visibility_off" fill size={14} />匿名で送信</p>
                 )}
                 <div className="flex gap-2 items-center">
                   <button
@@ -2836,7 +3095,7 @@ ${logsText}
                   <span className="bg-sunk text-sub text-[12px] font-bold px-3 py-1 rounded-full">{selectedLog.category}</span>
                   <span className={cx(
                     "text-[12px] font-bold px-3 py-1 rounded-full flex items-center gap-1",
-                    selectedLog.privacy === "PUBLIC" ? "bg-brand-tint text-brand-deep" : selectedLog.privacy === "FOLLOWERS" ? "bg-ask-tint text-ask-ink" : "bg-sunk text-sub"
+                    selectedLog.privacy === "PUBLIC" ? "bg-brand-tint text-brand-deep" : "bg-sunk text-sub"
                   )}>
                     <Icon n={selectedLog.privacy === "PUBLIC" ? "public" : selectedLog.privacy === "FOLLOWERS" ? "lock" : "visibility_off"} size={14} />
                     <span>{selectedLog.privacy === "PUBLIC" ? "全員に公開中" : selectedLog.privacy === "FOLLOWERS" ? "フォロワー限定" : "自分のみ(非公開)"}</span>
@@ -2927,7 +3186,7 @@ ${logsText}
                   <label className={LABEL}>{newType === "question" ? "くわしい状況（任意）" : "本文・詳細情報"}</label>
                   <textarea
                     rows="3"
-                    placeholder={newType === "question" ? "状況や困っていることを書くと、答えてもらいやすくなります..." : "みんなに伝えたい情報を入力..."}
+                    placeholder={newType === "question" ? "状況を書くと答えてもらいやすいです" : "伝えたいこと"}
                     value={newContent}
                     onChange={(e) => setNewContent(e.target.value)}
                     className={cx(INPUT, "leading-relaxed")}
@@ -2968,15 +3227,11 @@ ${logsText}
                   />
                   <span className="leading-relaxed">
                     <span className="font-bold text-[14px] block">匿名で投稿する</span>
-                    <span className="text-[12px] text-sub">
-                      オフのときは「{myLabel.replace("（あなた）", "")}」と表示されます。名前は表示されません。
-                    </span>
+                    <span className="text-[12px] text-sub">オフ：「{myLabel.replace("（あなた）", "")}」と表示</span>
                   </span>
                 </label>
 
-                <p className="text-[12px] text-mute leading-relaxed">
-                  ※ 個人や団体が特定できる内容（名指しの評価・悪口など）は投稿しないでください。不適切な投稿は通報の対象になります。
-                </p>
+                <p className="text-[12px] text-mute">※ 個人が特定できる内容・悪口はNG</p>
               </div>
 
               <div className="px-4 pt-3 pb-4 border-t border-line">
@@ -2984,10 +3239,10 @@ ${logsText}
                   onClick={handleCreatePost}
                   className={cx(
                     "w-full font-black py-3.5 rounded-2xl shadow-soft text-[15px] text-on-brand press",
-                    newType === "question" ? "bg-ask" : "bg-brand"
+                    "bg-brand"
                   )}
                 >
-                  {newType === "question" ? "この内容で質問する" : `投稿を完了して+${POINT_RULES.share}pt`}
+                  {newType === "question" ? "質問する" : `投稿する（+${POINT_RULES.share}pt）`}
                 </button>
               </div>
             </Sheet>
@@ -3049,7 +3304,7 @@ ${logsText}
                   <div className="grid grid-cols-3 gap-2 text-[12px] font-bold">
                     {[
                       { v: "PUBLIC", icon: "public", label: "全員に公開", on: "bg-brand-tint text-brand-deep border-brand" },
-                      { v: "FOLLOWERS", icon: "lock", label: "フォロワーのみ", on: "bg-ask-tint text-ask-ink border-ask" },
+                      { v: "FOLLOWERS", icon: "lock", label: "フォロワーのみ", on: "bg-brand-tint text-brand-deep border-brand" },
                       { v: "PRIVATE", icon: "visibility_off", label: "自分のみ", on: "bg-sunk text-ink border-sub" }
                     ].map(o => (
                       <button
@@ -3085,7 +3340,7 @@ ${logsText}
                   </button>
                 </div>
 
-                <div className="bg-gradient-to-br from-brand via-brand to-sky/80 text-on-brand rounded-[2rem] p-5 relative overflow-hidden shadow-lift space-y-4">
+                <div className="bg-brand text-on-brand rounded-[2rem] p-5 relative overflow-hidden shadow-lift space-y-4">
                   <div className="absolute inset-0 shimmer-bg pointer-events-none"></div>
                   <div className="absolute -right-10 -top-10 w-36 h-36 rounded-full bg-white/25 pointer-events-none"></div>
 
@@ -3151,9 +3406,7 @@ ${logsText}
                     <Icon n="content_copy" size={20} />
                     <span>SNS用カード画像を保存・シェア</span>
                   </button>
-                  <p className="text-[12px] text-white/85 text-center font-medium">
-                    ※個人情報は含まれず、学内実績データのみが画像化されます
-                  </p>
+                  <p className="text-[12px] text-white/85 text-center font-medium">個人情報は含まれません</p>
                 </div>
               </div>
             </div>
@@ -3189,9 +3442,9 @@ ${logsText}
                     </div>
                     <button
                       onClick={() => setOpenAiAnalysisModal(false)}
-                      className="w-full bg-sky-ink text-bg font-black py-3.5 rounded-2xl text-[14px] shadow-soft press"
+                      className={cx(BTN_PRIMARY, "w-full")}
                     >
-                      自分の振り返りを完了する
+                      閉じる
                     </button>
                   </div>
                 )}
@@ -3209,7 +3462,7 @@ ${logsText}
               />
 
               <div className="px-5 pb-4 pt-1 space-y-2.5">
-                <p className="text-[13px] text-sub leading-relaxed">理由を選んでください。通報した内容は、あなたの画面ではすぐに非表示になります。</p>
+                <p className="text-[13px] text-sub">理由を選んでください</p>
                 {REPORT_REASONS.map(reason => (
                   <button
                     key={reason}
@@ -3223,7 +3476,7 @@ ${logsText}
                     <span>{reason}</span>
                   </button>
                 ))}
-                <p className="text-[12px] text-mute">※ デモ版のため、通報内容は運営には送信されません。</p>
+                <p className="text-[12px] text-mute">※ デモ：送信はされません</p>
               </div>
 
               <div className="px-4 pt-3 pb-4 border-t border-line flex gap-2.5">
@@ -3247,18 +3500,17 @@ ${logsText}
             <Sheet onClose={() => setOpenCompose(false)}>
               <SheetHeader title="投稿する" icon="add_circle" onClose={() => setOpenCompose(false)} />
               <div className="px-5 pb-6 pt-1 space-y-3">
-                <button onClick={() => { setOpenCompose(false); openAsk(""); }} className="w-full text-left bg-ask-tint rounded-3xl p-4 flex items-center gap-3.5 press">
-                  <span className="w-12 h-12 rounded-2xl bg-ask text-on-brand flex items-center justify-center flex-shrink-0"><Icon n="help" fill size={28} /></span>
+                <button onClick={() => { setOpenCompose(false); openAsk(""); }} className="w-full text-left bg-sunk rounded-3xl p-4 flex items-center gap-3.5 press">
+                  <span className="w-12 h-12 rounded-2xl bg-surface text-brand-deep flex items-center justify-center flex-shrink-0"><Icon n="help" fill size={28} /></span>
                   <span>
-                    <span className="block font-head font-black text-[17px] text-ask-ink leading-tight">質問する</span>
-                    <span className="block text-[12px] text-ask-ink leading-snug mt-0.5">知りたいことを、みんなに聞いてみよう。</span>
+                    <span className="block font-head font-black text-[17px] text-ink leading-tight">質問する</span>
                   </span>
                 </button>
                 <button onClick={() => { setOpenCompose(false); openPost(); }} className="w-full text-left bg-brand-tint rounded-3xl p-4 flex items-center gap-3.5 press">
                   <span className="w-12 h-12 rounded-2xl bg-brand text-on-brand flex items-center justify-center flex-shrink-0"><Icon n="lightbulb" fill size={28} /></span>
                   <span>
                     <span className="block font-head font-black text-[17px] text-brand-deep leading-tight">情報を投稿する</span>
-                    <span className="block text-[12px] text-brand-deep leading-snug mt-0.5">知っていることを教えよう。投稿で +{POINT_RULES.share}pt</span>
+                    <span className="block text-[12px] text-brand-deep leading-snug mt-0.5">+{POINT_RULES.share}pt</span>
                   </span>
                 </button>
               </div>
@@ -3343,7 +3595,7 @@ ${logsText}
                   <div className="text-center py-8 space-y-2">
                     <div className="w-14 h-14 rounded-3xl bg-sunk text-mute mx-auto flex items-center justify-center"><Icon n="notifications_none" size={30} /></div>
                     <p className="font-head font-black text-[15px]">まだお知らせはありません</p>
-                    <p className="text-[12px] text-sub leading-relaxed">質問の「気になる」を押しておくと、新しい回答が付いたときにここでお知らせします。自分の質問への回答も届きます。</p>
+                    <p className="text-[12px] text-sub">「気になる」した質問の回答が届きます</p>
                   </div>
                 ) : notices.map(n => (
                   <button
@@ -3355,25 +3607,25 @@ ${logsText}
                       <Icon n={n.kind === "ai" ? "volunteer_activism" : "forum"} fill size={20} />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block text-[13px] font-black leading-snug">{n.kind === "ai" ? "AIサポーターからメッセージが届きました" : "新しい回答が届きました"}</span>
+                      <span className="block text-[13px] font-black leading-snug">{n.kind === "ai" ? "AIからひとこと" : "新しい回答"}</span>
                       <span className="block text-[12px] text-sub mt-0.5 truncate">「{n.title}」</span>
                       {n.preview && <span className="block text-[12px] text-ink mt-1 line-clamp-2 leading-relaxed">{n.preview}</span>}
                       <span className="block text-[12px] text-mute mt-1">{agoLabel(n.at)}</span>
                     </span>
-                    {!n.read && <span className="w-2.5 h-2.5 rounded-full bg-love flex-shrink-0 mt-1.5" aria-label="未読"></span>}
+                    {!n.read && <span className="w-2.5 h-2.5 rounded-full bg-brand flex-shrink-0 mt-1.5" aria-label="未読"></span>}
                   </button>
                 ))}
-                <p className="text-[12px] text-mute leading-relaxed pt-1">※ デモ版：質問の「気になる」を押すと、約6秒後に先輩の回答が届いたことにしています。本番では、実際に回答が付いたタイミングで、アプリのお知らせに加えてLINEやメールでも届ける想定です。</p>
+                <p className="text-[12px] text-mute pt-1">※ デモ：「気になる」の約6秒後に回答が届きます</p>
               </div>
             </Sheet>
           )}
 
           {openPointExchangeModal && (
             <Sheet onClose={() => setOpenPointExchangeModal(false)}>
-              <SheetHeader title="学内カフェ・生協 ポイント交換" icon="local_cafe" onClose={() => setOpenPointExchangeModal(false)} />
+              <SheetHeader title="ポイント交換" icon="confirmation_number" onClose={() => setOpenPointExchangeModal(false)} />
 
               <div className="mx-5 mb-3 bg-ask-tint rounded-3xl p-3.5 flex justify-between items-center">
-                <span className="text-ask-ink font-bold text-[13px]">現在の保有ポイント:</span>
+                <span className="text-sub font-bold text-[13px]">保有ポイント</span>
                 <div className="font-head font-black text-ask-ink text-[20px] flex items-center gap-1">
                   <Icon n="stars" fill size={20} />
                   <span>{userThanks} pt</span>
@@ -3397,50 +3649,42 @@ ${logsText}
                 />
               </div>
 
-              <div className="px-5 pb-5 overflow-y-auto space-y-3 flex-1">
+              <div ref={pointScrollRef} className="px-5 pb-5 overflow-y-auto space-y-3 flex-1">
                 {activeTabPointModal === "exchange" && (
-                  <div className="space-y-3">
-                    <p className="text-[13px] text-sub leading-relaxed">
-                      投稿・回答・「助かった！」で貯めたptを、学内カフェや生協で使える電子チケットに交換できます。
-                    </p>
-
-                    {[
-                      { tag: "学内カフェ提携", tagTone: "bg-ask-tint text-ask-ink", name: "☕ 学内カフェ ドリンク1杯無料チケット", desc: "全ドリンク対象（ブレンド・ラテ・季節のドリンク）", cost: 100, title: "学内カフェ ドリンク1杯無料チケット", unit: "チケット" },
-                      { tag: "カフェ・購買共通", tagTone: "bg-brand-tint text-brand-deep", name: "🥤 学内カフェ＆生協 100円引き電子クーポン", desc: `カフェ全商品・${U.dining}のお会計で利用可能`, cost: 50, title: "学内カフェ＆生協 100円引きクーポン", unit: "クーポン" }
-                    ].map(item => (
-                      <div key={item.cost} className="bg-surface p-4 rounded-3xl shadow-soft border border-line/70 space-y-3">
-                        <div className="flex justify-between items-start gap-2">
-                          <div className="min-w-0">
-                            <span className={cx("text-[12px] font-black px-2.5 py-0.5 rounded-full", item.tagTone)}>{item.tag}</span>
-                            <h4 className="font-bold text-[15px] mt-1.5 leading-snug">{item.name}</h4>
-                            <p className="text-[12px] text-sub mt-0.5">{item.desc}</p>
-                          </div>
-                          <span className="font-head font-black text-ask-ink text-[14px] bg-ask-tint px-3 py-1 rounded-full flex-shrink-0">{item.cost} pt</span>
-                        </div>
+                  <div className="space-y-2.5">
+                    <p className="text-[13px] text-sub flex items-center gap-1"><Icon n="train" size={16} className="text-brand-deep" />札幌駅周辺のお店で使えます</p>
+                    {PARTNER_STORES.map(store => {
+                      const enough = userThanks >= store.ticket.cost;
+                      return (
                         <button
-                          onClick={() => handleExchangePoint({ title: item.title, cost: item.cost })}
-                          disabled={userThanks < item.cost}
-                          className={cx(
-                            "w-full py-3 rounded-2xl font-black text-[14px] press",
-                            userThanks >= item.cost ? "bg-ask text-on-brand shadow-soft" : "bg-sunk text-mute cursor-not-allowed"
-                          )}
+                          key={store.id}
+                          onClick={() => setSelectedStore(store)}
+                          className="w-full text-left bg-surface p-3 rounded-3xl shadow-soft border border-line/70 flex gap-3 items-center press"
                         >
-                          {userThanks >= item.cost ? `${item.cost}ptで${item.unit}に交換する` : "ポイントが不足しています"}
+                          <StoreThumb store={store} className="w-[72px] h-[72px] rounded-2xl" />
+                          <span className="min-w-0 flex-1 space-y-0.5">
+                            <span className="block text-[12px] text-mute truncate">{store.name}</span>
+                            <span className="block font-head font-black text-[16px] leading-snug">{store.ticket.title}</span>
+                            <span className="flex items-center gap-2 text-[11px] text-sub">
+                              <span className="flex items-center gap-0.5"><Icon n="directions_walk" size={14} />{store.access}</span>
+                              <OpenBadge store={store} />
+                            </span>
+                          </span>
+                          <span className={cx("font-head font-black text-[13px] px-2.5 py-1 rounded-full flex-shrink-0", enough ? "bg-brand-tint text-brand-deep" : "bg-sunk text-mute")}>{store.ticket.cost}pt</span>
                         </button>
-                      </div>
-                    ))}
+                      );
+                    })}
+                    <p className="text-[11px] text-mute text-center pt-1">※ 掲載店はサンプルです</p>
                   </div>
                 )}
 
                 {activeTabPointModal === "myCoupons" && (
                   <div className="space-y-3">
-                    <p className="text-[13px] text-sub leading-relaxed">
-                      交換済みのチケットです。カフェのレジで「利用する」を押して画面を提示してください。
-                    </p>
+                    <p className="text-[13px] text-sub">お店のレジで「お店で使う」→ QRを読み取り</p>
 
                     {myCoupons.length === 0 ? (
                       <div className="py-8 text-center text-mute text-[13px]">
-                        所持しているチケットはありません。「ポイントを使う」から交換できます。
+                        チケットはまだありません
                       </div>
                     ) : (
                       myCoupons.map(coupon => (
@@ -3448,24 +3692,40 @@ ${logsText}
                           key={coupon.id}
                           className={cx(
                             "p-4 rounded-3xl",
-                            coupon.isUsed ? "bg-sunk opacity-60" : "bg-ask-tint border-2 border-dashed border-ask"
+                            coupon.isUsed ? "bg-sunk" : "bg-surface border-2 border-dashed border-brand/50"
                           )}
                         >
-                          <div className="flex justify-between items-center text-[12px] mb-1">
-                            <span className="text-ask-ink font-mono font-bold">{coupon.code}</span>
-                            <span className="text-sub">{coupon.date} 交換</span>
-                          </div>
-                          <h4 className="font-bold text-[15px] mb-3">{coupon.title}</h4>
+                          {(() => {
+                            const st = storeById(coupon.storeId);
+                            return (
+                              <div className="flex gap-3 items-center mb-3">
+                                {st && <StoreThumb store={st} className="w-14 h-14 rounded-2xl" iconSize={24} />}
+                                <div className="min-w-0 flex-1">
+                                  <h4 className="font-bold text-[15px] leading-snug">{st ? st.ticket.title : coupon.title}</h4>
+                                  {st && <p className="text-[12px] text-sub truncate">{st.name}</p>}
+                                  <p className="text-[11px] text-mute">{coupon.isUsed ? coupon.code : `期限 ${coupon.expires || "—"}`}</p>
+                                </div>
+                                {st && !coupon.isUsed && (
+                                  <button onClick={() => setSelectedStore(st)} aria-label={`${st.name}のお店情報`} className="w-9 h-9 rounded-full bg-sunk text-sub flex items-center justify-center flex-shrink-0 press">
+                                    <Icon n="info" size={20} />
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })()}
 
                           {coupon.isUsed ? (
-                            <span className="block text-center py-2.5 bg-surface text-mute font-bold text-[13px] rounded-2xl">使用済み</span>
+                            <button onClick={() => setActiveCouponForUse(coupon)} className="w-full text-left bg-surface rounded-2xl px-3.5 py-2.5 text-[12px] text-sub space-y-0.5 press">
+                              <span className="flex items-center gap-1 font-black text-ink text-[13px]"><Icon n="check_circle" fill size={16} className="text-brand" />使用済み</span>
+                              {coupon.usedAt && <span className="block tabular-nums">{fmtDateTime(coupon.usedAt)}・{coupon.store}・{coupon.receipt}</span>}
+                            </button>
                           ) : (
                             <button
                               onClick={() => setActiveCouponForUse(coupon)}
                               className={cx(BTN_PRIMARY, "w-full flex items-center justify-center gap-1.5")}
                             >
-                              <Icon n="qr_code_2" size={20} />
-                              <span>レジで提示して使う</span>
+                              <Icon n="qr_code_scanner" size={20} />
+                              <span>お店で使う</span>
                             </button>
                           )}
                         </div>
@@ -3477,45 +3737,76 @@ ${logsText}
             </Sheet>
           )}
 
-          {/* 🏷️ カフェレジ提示用バーコードモーダル */}
-          {activeCouponForUse && (
-            <Dialog onClose={() => setActiveCouponForUse(null)} className="max-w-xs">
-              <div className="p-5 space-y-4 text-center">
-                <div className="flex justify-between items-center">
-                  <span className="text-[12px] font-black bg-ask text-on-brand px-3 py-1 rounded-full">学内カフェ提示用</span>
-                  <button onClick={() => setActiveCouponForUse(null)} aria-label="閉じる" className="w-9 h-9 rounded-full bg-sunk text-sub flex items-center justify-center press">
+          {/* 🏬 協力店の詳細（必要な情報だけ：写真・特典・アクセス・営業時間） */}
+          {selectedStore && (
+            <Sheet onClose={() => setSelectedStore(null)} z={60}>
+              <div className="overflow-y-auto">
+                <div className="relative mx-5 rounded-3xl overflow-hidden aspect-[16/9]">
+                  <StoreThumb store={selectedStore} className="absolute inset-0 w-full h-full" iconSize={48} />
+                  <button onClick={() => setSelectedStore(null)} aria-label="閉じる" className="absolute top-2.5 right-2.5 w-9 h-9 rounded-full bg-surface/90 text-ink flex items-center justify-center shadow-soft press">
                     <Icon n="close" size={20} />
                   </button>
                 </div>
-
-                <div className="space-y-1">
-                  <h3 className="font-head font-black text-[17px]">{activeCouponForUse.title}</h3>
-                  <p className="text-[12px] text-sub">レジのスタッフにこちらの画面をお見せください</p>
-                </div>
-
-                <div className="bg-white p-4 rounded-3xl shadow-soft space-y-2" style={{ color: "#111" }}>
-                  <div className="h-14 rounded-md p-2 flex items-center justify-between gap-1 overflow-hidden" style={{ background: "#111" }}>
-                    {Array.from({ length: 28 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className={`h-full bg-white ${i % 3 === 0 ? 'w-1.5' : i % 2 === 0 ? 'w-0.5' : 'w-1'}`}
-                      ></div>
-                    ))}
+                <div className="px-5 pt-4 pb-5 space-y-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 text-[12px] text-sub">
+                      <span>{selectedStore.genre}</span><OpenBadge store={selectedStore} />
+                    </div>
+                    <h3 className="font-head font-black text-[20px] leading-tight">{selectedStore.name}</h3>
+                    <p className="text-[13px] text-sub">{selectedStore.note}</p>
                   </div>
-                  <span className="font-mono font-black text-[13px] tracking-widest block">{activeCouponForUse.code}</span>
-                </div>
 
-                <div className="space-y-2">
-                  <button
-                    onClick={() => handleUseCoupon(activeCouponForUse.id)}
-                    className={cx(BTN_PRIMARY, "w-full")}
-                  >
-                    スタッフが確認して使用済みにする
-                  </button>
-                  <p className="text-[12px] text-mute">※ご自分で誤って押さないようご注意ください</p>
+                  <div className="bg-brand-tint rounded-2xl p-3.5 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-head font-black text-[17px] text-brand-deep leading-snug">{selectedStore.ticket.title}</p>
+                      <p className="text-[12px] text-sub">{selectedStore.ticket.detail}</p>
+                    </div>
+                    <span className="font-head font-black text-[15px] text-brand-deep flex-shrink-0">{selectedStore.ticket.cost}pt</span>
+                  </div>
+
+                  <div className="space-y-2.5 text-[13px]">
+                    <a href={mapUrl(selectedStore)} target="_blank" rel="noopener" className="flex items-start gap-2.5 press">
+                      <Icon n="location_on" size={20} className="text-mute mt-px" />
+                      <span className="flex-1 min-w-0">
+                        <span className="block">{selectedStore.address}</span>
+                        <span className="block text-[12px] text-sub">札幌駅 {selectedStore.access}</span>
+                      </span>
+                      <span className="text-[12px] font-bold text-brand-deep flex items-center flex-shrink-0">地図<Icon n="chevron_right" size={16} /></span>
+                    </a>
+                    <div className="flex items-start gap-2.5">
+                      <Icon n="schedule" size={20} className="text-mute mt-px" />
+                      <span className="flex-1">
+                        <span className="block">{selectedStore.hoursText}</span>
+                        <span className="block text-[12px] text-sub">定休日：{selectedStore.closedText}</span>
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-mute">交換から{TICKET_VALID_DAYS}日間有効・1回1枚・他の割引と併用不可</p>
+
+                  {userThanks >= selectedStore.ticket.cost ? (
+                    <button
+                      onClick={() => handleExchangePoint({ storeId: selectedStore.id, title: `${selectedStore.name}｜${selectedStore.ticket.title}`, cost: selectedStore.ticket.cost })}
+                      className={cx(BTN_PRIMARY, "w-full")}
+                    >
+                      {selectedStore.ticket.cost}ptで交換する
+                    </button>
+                  ) : (
+                    <div className="w-full py-3.5 rounded-2xl bg-sunk text-mute font-bold text-[14px] text-center">あと{selectedStore.ticket.cost - userThanks}pt で交換できます</div>
+                  )}
                 </div>
               </div>
-            </Dialog>
+            </Sheet>
+          )}
+
+          {/* 🏪 お店で使う（非接触：お店のQRを読む → スライドで確定 → 完了画面を見せる） */}
+          {activeCouponForUse && (
+            <StoreRedeemScreen
+              key={activeCouponForUse.id}
+              coupon={activeCouponForUse}
+              onClose={() => setActiveCouponForUse(null)}
+              onRedeem={handleUseCoupon}
+            />
           )}
 
         </div>
